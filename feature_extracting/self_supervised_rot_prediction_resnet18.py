@@ -339,11 +339,11 @@ def main():
     model.y_trans_head = nn.Linear(512, 3)
     model.rot_head = nn.Linear(512, 4)
     model.fc = nn.Identity()
-    # model.logits = nn.Linear(512,10)
+    model.logits = nn.Linear(512,10)
     
     tm=torch.load(pre_trained_net, map_location = "cuda:" + str(args.gpu))
 
-    model.load_state_dict(tm['net'])
+    model.load_state_dict(tm)
     model.cuda()
     print(model)
     print()

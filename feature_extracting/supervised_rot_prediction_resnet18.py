@@ -343,7 +343,7 @@ def main():
     
     tm=torch.load(pre_trained_net, map_location = "cuda:" + str(args.gpu))
 
-    model.load_state_dict(tm['net'])
+    model.load_state_dict(tm)
     model.cuda()
     print(model)
     print()
