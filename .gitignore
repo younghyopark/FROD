@@ -129,5 +129,5 @@ dmypy.json
 .pyre/
 
 data
-extracted_features/*
-trained_backbones/*
+*.pth 
+*.npy
