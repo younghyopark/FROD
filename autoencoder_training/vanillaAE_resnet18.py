@@ -17,7 +17,6 @@ import torch.nn.functional as F
 import torch
 from tqdm import tqdm
 import seaborn as sns
-import calculate_log as callog
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from torchvision.datasets import MNIST
@@ -28,17 +27,14 @@ from plotly.offline import plot
 import plotly.graph_objs as go
 import matplotlib.pyplot as plt
 
-os.makedirs("images", exist_ok=True)
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--n_epochs", type=int, default=500, help="number of epochs of training")
 parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument('--backbone_name', required=True, help='')
-parser.add_argument('--gpu', type=int, default=0, help='gpu index')
-parser.add_argument('--ckpt_epoch',type=int,default=200)
+parser.add_argument('--gpu', type=int, required=True, help='gpu index')
+parser.add_argument('--ckpt_epoch',type=int,default=50)
 parser.add_argument('--test_epoch',type=int,default=20)
-parser.add_argument('--char',required=True, help='')
 parser.add_argument("--out_target", type=int, default=100)
 parser.add_argument("--dataset", default = 'cifar10')
 parser.add_argument("--out_dataset",default='svhn')
@@ -60,8 +56,7 @@ cuda = True if torch.cuda.is_available() else False
 device = torch.device('cuda')
 torch.cuda.set_device(opt.gpu)
 
-writer = SummaryWriter(logdir=os.path.join('trained_autoencoders',opt.experiment,opt.backbone_name))
-shutil.copy('vanillaAE_resnet18.py',os.path.join('trained_autoencoders',opt.experiment,opt.backbone_name))
+writer = SummaryWriter(logdir=os.path.join('trained_autoencoders','vanilla_AE',opt.backbone_name))
 
 out_dataset = []
 num_out_datasets=0
@@ -88,7 +83,7 @@ for i in range(9):
     test_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+'original'+'_test_ind.npy'))
     print(num_out_datasets)
     for j in range(num_out_datasets):
-        test_ood_feature[i].append(np.load(os.path.join(opt.outf,experiment,'Features_from_layer_'+str(i)+'_'+out_dataset[j]+'_'+'original'+'_test_ood.npy')))
+        test_ood_feature[i].append(np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+out_dataset[j]+'_'+'original'+'_test_ood.npy')))
         num_ood[i].append(test_ood_feature[i][j].shape[0])
 train_data_ind = train_ind_feature
 test_data_ind = test_ind_feature
@@ -118,6 +113,9 @@ class AE(nn.Module):
 class Encoder(nn.Module):
     def __init__(self, x_dim, h_dim1, h_dim2,h_dim3,h_dim4,h_dim5,h_dim6):
         super(Encoder, self).__init__()
+        self.h_dim6=h_dim6
+        self.h_dim5=h_dim5
+        self.h_dim4=h_dim4
         self.fc1 = nn.Linear(x_dim, h_dim1)
         self.fc2 = nn.Linear(h_dim1, h_dim2)
         self.fc3 = nn.Linear(h_dim2, h_dim3)
@@ -131,16 +129,16 @@ class Encoder(nn.Module):
     def forward(self, x):
         h = F.relu(self.fc1(x))
         h = F.relu(self.fc2(h))
-        if opt.h_dim6 >0:
+        if self.h_dim6 >0:
             h = F.relu(self.fc3(h))
             h = F.relu(self.fc4(h))
             h = F.relu(self.fc5(h))
             h = self.fc6(h)
-        elif opt.h_dim5 >0:
+        elif self.h_dim5 >0:
             h = F.relu(self.fc3(h))
             h = F.relu(self.fc4(h))
             h = self.fc5(h)
-        elif opt.h_dim4 >0:
+        elif self.h_dim4 >0:
             h = F.relu(self.fc3(h))
             h = self.fc4(h)
         else:
@@ -151,6 +149,9 @@ class Encoder(nn.Module):
 class Generator(nn.Module):
     def __init__(self, x_dim, h_dim1, h_dim2,h_dim3,h_dim4,h_dim5, h_dim6):
         super(Generator, self).__init__()
+        self.h_dim6=h_dim6
+        self.h_dim5=h_dim5
+        self.h_dim4=h_dim4
         if h_dim6 >0:
             self.fc6 = nn.Linear(h_dim6,h_dim5)
         if h_dim5 >0:
@@ -162,16 +163,16 @@ class Generator(nn.Module):
         self.fc1 = nn.Linear(h_dim1, x_dim)
     
     def forward(self, z):
-        if opt.h_dim6 >0:
+        if self.h_dim6 >0:
             h = F.relu(self.fc6(z))
             h = F.relu(self.fc5(h))
             h = F.relu(self.fc4(h))
             h = F.relu(self.fc3(h))
-        elif opt.h_dim5 >0:
+        elif self.h_dim5 >0:
             h = F.relu(self.fc5(z))
             h = F.relu(self.fc4(h))
             h = F.relu(self.fc3(h))
-        elif opt.h_dim4>0:
+        elif self.h_dim4>0:
             h = F.relu(self.fc4(z))
             h = F.relu(self.fc3(h))
         else:
@@ -233,8 +234,8 @@ for j in range(9):
         if epoch % opt.ckpt_epoch == 0:
             model_state = models[j].state_dict()
             #print(model_state)
-            ckpt_name = 'layer_{}_{}_epoch_model1'.format(j,epoch)
-            ckpt_path = os.path.join('trained_autoencoders',opt.experiment,opt.ae_name,ckpt_name + ".pth")
+            ckpt_name = 'layer_{}'.format(j)
+            ckpt_path = os.path.join('trained_autoencoders','vanilla_AE',opt.backbone_name,ckpt_name + ".pth")
             torch.save(model_state, ckpt_path)
 
 print('=== reconstruction error calculation on test data ===')
@@ -248,7 +249,7 @@ for j in range(9):
     rc_error_ind_total = torch.cat(rc_error_ind,0)   
     rc_error_ind_total_np = rc_error_ind_total.detach().cpu().numpy()  
     ind_score = -rc_error_ind_total_np
-    l0 = open('./trained_autoencoders/'+opt.experiment+'/'+opt.ae_name+'/confidence_layer_{}_in_{}_epoch_{}_train.txt'.format(j,opt.dataset,epoch), 'w')
+    l0 = open('./trained_autoencoders/vanilla_AE'+opt.backbone_name+'/'+'/confidence_layer_{}_in_{}_epoch_{}_train.txt'.format(j,opt.dataset,epoch), 'w')
     for i in range(ind_score.shape[0]):
         l0.write("{}\n".format(ind_score[i]))
     l0.close()
@@ -262,7 +263,7 @@ for j in range(9):
     rc_error_ind_total = torch.cat(rc_error_ind,0)   
     rc_error_ind_total_np = rc_error_ind_total.detach().cpu().numpy()  
     ind_score = -rc_error_ind_total_np
-    l1 = open('./trained_autoencoders/'+opt.experiment+'/'+opt.ae_name+'/confidence_layer_{}_in_{}_epoch_{}.txt'.format(j,opt.dataset,epoch), 'w')
+    l1 = open('./trained_autoencoders/vanilla_AE'+opt.backbone_name+'/'+'/confidence_layer_{}_in_{}_epoch_{}.txt'.format(j,opt.dataset,epoch), 'w')
     for i in range(ind_score.shape[0]):
         l1.write("{}\n".format(ind_score[i]))
     l1.close()
@@ -278,7 +279,7 @@ for j in range(9):
         rc_error_ood_total_np = rc_error_ood_total.detach().cpu().numpy()        
 
         ood_score = -rc_error_ood_total_np
-        l2 = open('./trained_autoencoders/'+opt.experiment+'/'+opt.ae_name+'/confidence_layer_{}_out_{}_epoch_{}_model1.txt'.format(j,out_dataset[out_n],epoch), 'w')
+        l2 = open('./trained_autoencoders/vanilla_AE'+opt.backbone_name+'/'+'/confidence_layer_{}_out_{}_epoch_{}_model1.txt'.format(j,out_dataset[out_n],epoch), 'w')
         for i in range(ood_score.shape[0]):
             l2.write("{}\n".format(ood_score[i]))
         l2.close()
