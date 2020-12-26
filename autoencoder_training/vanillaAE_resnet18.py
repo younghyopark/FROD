@@ -47,6 +47,7 @@ parser.add_argument("--out_dataset7",default='place365')
 parser.add_argument("--out_dataset8",default='gaussian_noise')
 parser.add_argument("--out_dataset9",default='uniform_noise')
 parser.add_argument('--outf',default='extracted_features')
+parser.add_argument('--resume',type=int, default=0)
 
 opt = parser.parse_args()
 print(opt)
@@ -214,34 +215,43 @@ for i in range(9):
     models[i].to(device)
     models[i].train()
 
-for j in range(9):
-    for epoch in range(1, opt.n_epochs+ 1):
-        avg_loss = 0
-        step = 0
-        for i, data in enumerate(train_ind_loader[j]):
-            step += 1
-            data = data.cuda()
-    #         print(data)
-            optimizer[j].zero_grad()
-            recon_error = models[j].recon_error(data)
-            loss = torch.mean(recon_error)
-            loss.backward()
-            optimizer[j].step()
-            avg_loss += loss
-            if i % 100 == 0:    
-                print('Model for layer {} => Epoch [{}/{}] Batch [{}/{}]=> Loss: {:.5f}'.format(j,epoch, opt.n_epochs, i,len(train_ind_loader[j]), avg_loss / step))
+if opt.resume==0:
+    for j in range(9):
+        for epoch in range(1, opt.n_epochs+ 1):
+            avg_loss = 0
+            step = 0
+            for i, data in enumerate(train_ind_loader[j]):
+                step += 1
+                data = data.cuda()
+        #         print(data)
+                optimizer[j].zero_grad()
+                recon_error = models[j].recon_error(data)
+                loss = torch.mean(recon_error)
+                loss.backward()
+                optimizer[j].step()
+                avg_loss += loss
+                if i % 100 == 0:    
+                    print('Model for layer {} => Epoch [{}/{}] Batch [{}/{}]=> Loss: {:.5f}'.format(j,epoch, opt.n_epochs, i,len(train_ind_loader[j]), avg_loss / step))
 
-        if epoch % opt.ckpt_epoch == 0:
-            model_state = models[j].state_dict()
-            #print(model_state)
-            ckpt_name = 'layer_{}'.format(j)
-            ckpt_path = os.path.join('trained_autoencoders','vanilla_AE',opt.backbone_name,ckpt_name + ".pth")
-            torch.save(model_state, ckpt_path)
+            if epoch % opt.ckpt_epoch == 0:
+                model_state = models[j].state_dict()
+                #print(model_state)
+                ckpt_name = 'layer_{}_epoch_{}'.format(j,epoch)
+                ckpt_path = os.path.join('trained_autoencoders','vanilla_AE',opt.backbone_name,ckpt_name + ".pth")
+                torch.save(model_state, ckpt_path)
+
+if opt.resume==1:
+    epoch = 500
+    for j in range(9):
+        ckpt_name = 'layer_{}'.format(j)
+        tm = torch.load(os.path.join('trained_autoencoders','vanilla_AE',opt.backbone_name,ckpt_name + ".pth"))
+        print('model {} loaded'.format(j))
 
 print('=== reconstruction error calculation on test data ===')
 for j in range(9):
+    print('epoch {}'.format(j))
     rc_error_ind = []
-    for i, data in enumerate(train_ind_loader[j]):
+    for i, data in enumerate(tqdm(train_ind_loader[j])):
         data = data.cuda()
 #             print(i)
         recon_error = models[j].recon_error(data)
@@ -249,13 +259,13 @@ for j in range(9):
     rc_error_ind_total = torch.cat(rc_error_ind,0)   
     rc_error_ind_total_np = rc_error_ind_total.detach().cpu().numpy()  
     ind_score = -rc_error_ind_total_np
-    l0 = open('./trained_autoencoders/vanilla_AE'+opt.backbone_name+'/'+'/confidence_layer_{}_in_{}_epoch_{}_train.txt'.format(j,opt.dataset,epoch), 'w')
+    l0 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}_train.txt'.format(j,opt.dataset,epoch), 'w')
     for i in range(ind_score.shape[0]):
         l0.write("{}\n".format(ind_score[i]))
     l0.close()
 
     rc_error_ind = []
-    for i, data in enumerate(test_ind_loader[j]):
+    for i, data in enumerate(tqdm(test_ind_loader[j])):
         data = data.cuda()
 #             print(i)
         recon_error = models[j].recon_error(data)
@@ -263,14 +273,14 @@ for j in range(9):
     rc_error_ind_total = torch.cat(rc_error_ind,0)   
     rc_error_ind_total_np = rc_error_ind_total.detach().cpu().numpy()  
     ind_score = -rc_error_ind_total_np
-    l1 = open('./trained_autoencoders/vanilla_AE'+opt.backbone_name+'/'+'/confidence_layer_{}_in_{}_epoch_{}.txt'.format(j,opt.dataset,epoch), 'w')
+    l1 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}.txt'.format(j,opt.dataset,epoch), 'w')
     for i in range(ind_score.shape[0]):
         l1.write("{}\n".format(ind_score[i]))
     l1.close()
 
     for out_n in range(num_out_datasets):
         rc_error_ood = []
-        for i, data in enumerate(test_ood_loader[j][out_n]):
+        for i, data in enumerate(tqdm(test_ood_loader[j][out_n])):
             data = data.cuda()
 #             print(i)
             recon_error = models[j].recon_error(data)
@@ -279,7 +289,7 @@ for j in range(9):
         rc_error_ood_total_np = rc_error_ood_total.detach().cpu().numpy()        
 
         ood_score = -rc_error_ood_total_np
-        l2 = open('./trained_autoencoders/vanilla_AE'+opt.backbone_name+'/'+'/confidence_layer_{}_out_{}_epoch_{}_model1.txt'.format(j,out_dataset[out_n],epoch), 'w')
+        l2 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_out_{}_epoch_{}_model1.txt'.format(j,out_dataset[out_n],epoch), 'w')
         for i in range(ood_score.shape[0]):
             l2.write("{}\n".format(ood_score[i]))
         l2.close()

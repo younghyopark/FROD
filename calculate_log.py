@@ -25,7 +25,7 @@ def get_curve(known,novel,stype='TMP'):
     start = np.min([np.min(known),np.min(novel)])
     num_k = known.shape[0]
     num_n = novel.shape[0]
-    tp[stype] = -np.ones([num_k+num_n+1], dtype=int)å
+    tp[stype] = -np.ones([num_k+num_n+1], dtype=int)
     fp[stype] = -np.ones([num_k+num_n+1], dtype=int)
     tp[stype][0], fp[stype][0] = num_k, num_n
     k, n = 0, 0
