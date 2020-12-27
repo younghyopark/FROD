@@ -22,6 +22,12 @@ logging.getLogger().setLevel(logging.INFO)
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--moco_ver','-v', type=int, default=1, help='gpu index')
+parser.add_argument('--backbone_name','-bn', type=str)
+parser.add_argument('--batch_size','-bs', type=int) 
+parser.add_argument('--gpu',type=int)    
+
+
+
 
 opt = parser.parse_args()
 
@@ -199,11 +205,10 @@ class ModelBase(torch.nn.Module):
         for name, module in net.named_children():
             if name == 'conv1':
                 module = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-            # if opt.moco_ver==2:
-            #     if name == 'fc':
-            #         dim_mlp = module.weight.shape[1]
-            #         print(dim_mlp)
-            #         module = nn.Sequential(nn.Linear(dim_mlp, dim_mlp), nn.ReLU(), module)
+            if opt.moco_ver==2:
+                if name == 'fc':
+                    dim_mlp = module.weight.shape[1]
+                    module = nn.Sequential(torch.nn.Flatten(1),nn.Linear(dim_mlp, dim_mlp), nn.ReLU(), nn.Linear(dim_mlp, feature_dim))
             if isinstance(module, torch.nn.MaxPool2d):
                 continue
             if isinstance(module, torch.nn.Linear):
@@ -311,7 +316,7 @@ def update_records(loss, loss_fn, optimizer, record_keeper, global_iteration):
 
 
 def save_model(encQ):
-    model_folder = "moco_ver2_saved_models"
+    model_folder = "opt.backbone_name"
     if not os.path.exists(model_folder): os.makedirs(model_folder)
     torch.save(encQ.state_dict(), "{}/encQ_best.pth".format(model_folder))
 
@@ -381,7 +386,7 @@ def train(encQ, encK, paramK_momentum, loss_fn, optimizer, train_loader, record_
         update_records(loss, loss_fn, optimizer, record_keeper, global_iteration["iter"])
         global_iteration["iter"] += 1
 
-batch_size = 128
+batch_size = opt.batch_size
 lr = 0.03
 paramK_momentum = 0.99
 memory_size = 4096
