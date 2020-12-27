@@ -6,7 +6,44 @@ from torch.utils.data import DataLoader
 from PIL import Image
 import random
 
+class perm_4(object):
 
+    def __call__(self, img):
+        split=4
+        C, H, W = img.size()
+        h = H // split #16
+        w = W // split #16
+        split_img = []
+        for i in range(split):
+            for j in range(split):
+                split_img.append(img[:, i * h : (i + 1) * h, j * w : (j + 1) * w])
+        split_img = torch.stack(split_img) #s*s, C, h, w
+
+        rand = torch.rand(1, split * split)
+        batch_rand_perm = (rand.argsort(dim=1))[0] # s*s
+
+        rows = []
+        for r in range(split):
+            cols = []
+            for c in range(split):
+                cols.append(split_img[batch_rand_perm[r * split + c]])
+            cols = torch.cat(cols,2)
+            rows.append(cols)
+        rows = torch.cat(rows,1)
+
+        return rows
+        
+    def __repr__(self):
+        return self.__class__.__name__+'()'
+
+class rand_rot90(object):
+
+    def __call__(self, img):
+        img = torch.rot90(img, torch.randint(1,4,(1,))[0], [1,2])
+        return img
+        
+    def __repr__(self):
+        return self.__class__.__name__+'()'
 
 
 class Place365Dataset(torch.utils.data.Dataset):
@@ -118,7 +155,7 @@ def getDataLoader(dataset, batch_size, split, droot='./data',type='loader'):
                 batch_size=batch_size, shuffle=False)
         else:
             loader = torch.utils.data.DataLoader(
-                datasets.CIFAR10(droot, train=False, transform=transform_test),
+                datasets.CIFAR10(droot, train=False, download=True,transform=transform_test),
                 batch_size=batch_size, shuffle=False)
         print('cifar10 loaded')
 
@@ -210,4 +247,70 @@ def getDataLoader(dataset, batch_size, split, droot='./data',type='loader'):
         return dataset
 
 
+
+
+def getAugDataLoader(dataset, batch_size, split, droot='./data',type='loader',augmentation='perm4'):
+    if dataset in ['cifar10']:
+        mean = np.array([[0.4914, 0.4822, 0.4465]]).T
+        std = np.array([[0.2023, 0.1994, 0.2010]]).T
+        normalize = trn.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+        if augmentation=='perm4':
+            transform_train = trn.Compose([
+    #                 trn.RandomCrop(32, padding=4),
+    #                 trn.RandomHorizontalFlip(),
+                    trn.ToTensor(),
+                    perm_4(),
+                    # normalize  
+                ])
+
+            transform_test = trn.Compose([
+                    trn.CenterCrop(size=(32, 32)),
+                    trn.ToTensor(),
+                    # normalize
+                    perm_4(),
+                ])
+        elif augmentation =='rot':
+            print('here')
+            transform_train = trn.Compose([
+    #                 trn.RandomCrop(32, padding=4),
+    #                 trn.RandomHorizontalFlip(),
+                    trn.ToTensor(),
+                    rand_rot90(),
+                    normalize  
+                ])
+            print('here2')
+            transform_test = trn.Compose([
+                    trn.CenterCrop(size=(32, 32)),
+                    trn.ToTensor(),
+                    rand_rot90(),
+                    normalize
+                ])
+            print('here3')
+        elif augmentation == 'jitter':
+            transform_train = trn.Compose([
+    #                 trn.RandomCrop(32, padding=4),
+    #                 trn.RandomHorizontalFlip(),
+                    transforms.ColorJitter(0.4, 0.4, 0.4, 0.1),
+                    trn.ToTensor(),
+                    normalize  
+                ])
+
+        if split=='train':
+            loader = torch.utils.data.DataLoader(
+                datasets.CIFAR10(droot, train=True, download=True,
+                            transform=transform_train),
+                batch_size=batch_size, shuffle=False)
+        else:
+            print('here4')
+            loader = torch.utils.data.DataLoader(
+                datasets.CIFAR10(droot, train=False, download=True,transform=transform_test),
+                batch_size=batch_size, shuffle=False)
+        print('cifar10 loaded')
+    else:
+        assert('unsuppoted yet')
+    
+    if type=='loader':
+        return loader
+    else:
+        return dataset
 

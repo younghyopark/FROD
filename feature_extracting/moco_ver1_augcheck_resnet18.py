@@ -16,7 +16,7 @@ from tqdm import tqdm
 import torchvision.transforms as trn
 from tqdm import tqdm
 import torchvision.models as models
-from data_loader_normalize import getDataLoader
+from data_loader_normalize import getDataLoader, getAugDataLoader
 from functools import partial
 from torchvision.models import resnet
 
@@ -35,17 +35,10 @@ parser.add_argument('--batch_size', type=int, default=200, metavar='N', help='ba
 parser.add_argument('--dataset', default='cifar10', help='cifar10 | cifar100 | svhn')
 parser.add_argument('--outf', default='./extracted_features/', help='folder to output results')
 parser.add_argument('--backbone_name', required=True, help='')
-parser.add_argument('--gpu', required=True, type=int, default=0, help='gpu index')
+parser.add_argument('--gpu', type=int, default=0, help='gpu index')
 parser.add_argument('--out_target', default=None, help='out_target')
-parser.add_argument('--out_dataset1', default='svhn', help='out_target')
-parser.add_argument('--out_dataset2', default='imagenet_resize', help='out_target')
-parser.add_argument('--out_dataset3', default='lsun_resize', help='out_target')
-parser.add_argument('--out_dataset4', default='imagenet_fix', help='out_target')
-parser.add_argument('--out_dataset5', default='lsun_fix', help='out_target')
-parser.add_argument('--out_dataset6', default='place365', help='out_target')
-parser.add_argument('--out_dataset7', default='dtd', help='out_target')
-parser.add_argument('--out_dataset8', default='gaussian_noise', help='out_target')
-parser.add_argument('--out_dataset9', default='uniform_noise', help='out_target')
+parser.add_argument('--aug1', default='perm', help='out_target')
+parser.add_argument('--aug2', default='rot', help='out_target')
 args = parser.parse_args()
 
 print(args)
@@ -166,43 +159,39 @@ def main():
     #     feature_list[count] = out.size(1)
     #     count += 1
         
-    print('get features for in-distribution samples')
-    for i in tqdm(range(num_output)):
-        features = lib_extraction.moco_features(model, test_loader, i)
+    # print('get features for in-distribution samples')
+    # for i in tqdm(range(num_output)):
+    #     features = lib_extraction.moco_features(model, test_loader, i)
 
-        file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_original_test_ind.npy' % (str(i), args.dataset))
-        features = np.asarray(features, dtype=np.float32)
-        print('layer= ',i)
-        print(features.shape)
-        np.save(file_name, features) 
+    #     file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_original_test_ind.npy' % (str(i), args.dataset))
+    #     features = np.asarray(features, dtype=np.float32)
+    #     print('layer= ',i)
+    #     print(features.shape)
+    #     np.save(file_name, features) 
     
-    print('get features scores for out-of-distribution samples')
-    out_datasets_temp = [args.out_dataset1,args.out_dataset2,args.out_dataset3,args.out_dataset4,args.out_dataset5,args.out_dataset6,args.out_dataset7,args.out_dataset8,args.out_dataset9]
-    out_datasets=[]
-    for out in out_datasets_temp:
-        if out is not None:
-            out_datasets.append(out)
-            
-    for out in out_datasets:
-        print('out')
+    print('get features scores for transformed samples')
+    aug_list = ['rot','jitter']
+
+    for aug in aug_list:
+        print(aug)
         print('')
 
-        out_test_loader = getDataLoader(out,args.batch_size,'valid')
+        out_test_loader = getAugDataLoader(dataset=args.dataset,batch_size=args.batch_size,split='valid',type='loader',augmentation=aug)
 
         for i in tqdm(range(num_output)):
             features = lib_extraction.moco_features(model, out_test_loader, i)
 
-            file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_original_test_ood.npy' % (str(i), out))
+            file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_original_test_aug.npy' % (str(i), aug))
             features = np.asarray(features, dtype=np.float32)
             np.save(file_name, features) 
 
-    print('get Mahalanobis scores for in-distribution training samples')
-    for i in tqdm(range(num_output)):
-        features = lib_extraction.moco_features(model, train_loader, i)
+    # print('get Mahalanobis scores for in-distribution training samples')
+    # for i in tqdm(range(num_output)):
+    #     features = lib_extraction.moco_features(model, train_loader, i)
 
-        file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_original_train_ind.npy' % (str(i), args.dataset))
-        features = np.asarray(features, dtype=np.float32)
-        np.save(file_name, features) 
+    #     file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_original_train_ind.npy' % (str(i), args.dataset))
+    #     features = np.asarray(features, dtype=np.float32)
+    #     np.save(file_name, features) 
 
     
 if __name__ == '__main__':

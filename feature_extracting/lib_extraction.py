@@ -38,7 +38,7 @@ def moco_features(model, test_loader, layer_index):
     features = []
     net=nn.Sequential(model.module.net[0:3],*model.module.net[3],*model.module.net[4],*model.module.net[5],*model.module.net[6],model.module.net[7:])
 
-    for data, target in test_loader:
+    for data, target in tqdm(test_loader):
         
         data, target = data.cuda(), target.cuda()
         data, target = Variable(data, requires_grad = True), Variable(target)
