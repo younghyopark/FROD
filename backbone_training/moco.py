@@ -24,7 +24,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--moco_ver','-v', type=int, default=1, help='gpu index')
 parser.add_argument('--backbone_name','-bn', type=str)
 parser.add_argument('--batch_size','-bs', type=int) 
-parser.add_argument('--gpu',type=int) 
+parser.add_argument('--gpu',type=int)    
 
 
 
