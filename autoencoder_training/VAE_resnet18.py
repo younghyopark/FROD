@@ -166,7 +166,7 @@ models[6] = VAE(256, 128, 64, 16)
 models[7] = VAE(512, 256, 128, 16)
 models[8] = VAE(512, 256, 128, 16)
 if opt.moco_version==1:
-    modles[9]=VAE(128, 64, 32, 8)
+    models[9]=VAE(128, 64, 32, 8)
 elif opt.moco_version==2:
     models[9] = VAE(512, 256, 128, 16)
     models[10] = VAE(512, 256, 128, 16)
