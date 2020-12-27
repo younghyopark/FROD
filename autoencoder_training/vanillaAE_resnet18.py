@@ -249,7 +249,7 @@ if opt.resume==1:
 
 print('=== reconstruction error calculation on test data ===')
 for j in range(9):
-    print('epoch {}'.format(j))
+    print('layer {}'.format(j))
     rc_error_ind = []
     for i, data in enumerate(tqdm(train_ind_loader[j])):
         data = data.cuda()

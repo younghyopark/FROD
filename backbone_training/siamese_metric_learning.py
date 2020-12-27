@@ -11,6 +11,7 @@ from torch.optim import lr_scheduler
 import torch.optim as optim
 from torch.autograd import Variable
 import torch.nn.functional as F
+import os
 
 
 parser = argparse.ArgumentParser()
@@ -18,6 +19,7 @@ parser.add_argument("--n_epochs", type=int, default=500, help="number of epochs 
 parser.add_argument('--gpu', type=int, required=True, help='gpu index')
 parser.add_argument('--batch_size', type=int, default=128, help='bs')
 parser.add_argument('--backbone_name','-bn', type=str, required=True, help='bs')
+parser.add_argument('--margin', type=float, default=1.0, help='bs')
 
 opt = parser.parse_args()
 
@@ -126,9 +128,9 @@ class SiameseCIFAR10(Dataset):
     def __len__(self):
         return len(self.pos_dataset)
     
-siamese_train_dataset = SiameseCIFAR10(pos_dataset,neg_perm_dataset) # Returns pairs of images and target same/different
+siamese_train_dataset = SiameseCIFAR10(pos_dataset,neg_rot_dataset) # Returns pairs of images and target same/different
 batch_size = opt.batch_size
-kwargs = {'num_workers': 8, 'pin_memory': True} if cuda else {}
+kwargs = {'num_workers': 16, 'pin_memory': True} if cuda else {}
 siamese_train_loader = torch.utils.data.DataLoader(siamese_train_dataset, batch_size=batch_size, shuffle=True, **kwargs)
 
 # Set up the network and training parameters
@@ -166,9 +168,9 @@ class SiameseNet(nn.Module):
         return self.embedding_net(x)
 
 
-margin = 1.
+margin = opt.margin
 embedding_net = resnet18()
-embedding_net.fc= nn.Linear(512,2)
+embedding_net.fc= nn.Identity()
 model = SiameseNet(embedding_net)
 model.cuda()
 loss_fn = ContrastiveLoss(margin)
@@ -201,13 +203,12 @@ def fit(train_loader, model, loss_fn, optimizer, scheduler, n_epochs, cuda, log_
         message = 'Epoch: {}/{}. Train set: Average loss: {:.4f}'.format(epoch + 1, n_epochs, train_loss)
         for metric in metrics:
             message += '\t{}: {}'.format(metric.name(), metric.value())
-        if epoch%50==0:
+        if epoch%5==0:
             model_state = model.embedding_net.state_dict()
             #print(model_state)
-            ckpt_name = 'epoch_{}'.format(epoch)
-            ckpt_path = os.path.join('trained_backbones','testing_phase',opt.backbone_name,ckpt_name + ".pth")
+            ckpt_name = '{}_epoch_{}'.format(opt.backbone_name,epoch)
+            ckpt_path = os.path.join('trained_backbones','testing_phase',ckpt_name + ".pth")
             torch.save(model_state, ckpt_path)
-            torch.save()
         print(message)
 
 

@@ -32,3 +32,20 @@ def get_img(test_loader):
         data = data.view(bs, -1)
         features.extend(data.numpy())
     return features
+
+def moco_features(model, test_loader, layer_index):
+    model.eval()
+    features = []
+    net=nn.Sequential(model.module.net[0:3],*model.module.net[3],*model.module.net[4],*model.module.net[5],*model.module.net[6],model.module.net[7:])
+
+    for data, target in test_loader:
+        
+        data, target = data.cuda(), target.cuda()
+        data, target = Variable(data, requires_grad = True), Variable(target)
+        
+        out_features = net[0:layer_index+1](data)
+        out_features = out_features.view(out_features.size(0), out_features.size(1), -1)
+        out_features = torch.mean(out_features, 2)
+        
+        features.extend(out_features.detach().cpu().numpy())    
+    return features

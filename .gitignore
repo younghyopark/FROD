@@ -134,3 +134,10 @@ data
 events.*
 *.html
 *.txt
+
+example_saved_models
+example_tensorboard
+images
+moco_ver2_saved_models
+checkpoint
+example_logs
