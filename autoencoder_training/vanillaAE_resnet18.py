@@ -31,7 +31,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--n_epochs", type=int, default=500, help="number of epochs of training")
 parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
-parser.add_argument('--backbone_name', required=True, help='')
+parser.add_argument('--backbone_name','-bn', required=True, help='')
 parser.add_argument('--gpu', type=int, required=True, help='gpu index')
 parser.add_argument('--ckpt_epoch',type=int,default=50)
 parser.add_argument('--test_epoch',type=int,default=20)
@@ -75,12 +75,17 @@ if opt.dataset in ['cifar10','svhn']:
 else:
     num_out_datasets = 1
     out_dataset = ['MNIST']
+layer_num=9
+if opt.moco_version==1:
+    layer_num=10
+elif opt.moco_version==2:
+    layer_num=14
 
 train_ind_feature=dict()
 test_ind_feature=dict()
 test_ood_feature=dict()
 num_ood=dict()
-for i in range(9):
+for i in range(layer_num):
     test_ood_feature[i]=[]
     num_ood[i]=[]
     train_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+'original'+'_train_ind.npy'))
@@ -92,7 +97,7 @@ for i in range(9):
 train_data_ind = train_ind_feature
 test_data_ind = test_ind_feature
 test_data_ood = test_ood_feature
-for i in range(9):
+for i in range(layer_num):
     print(train_data_ind[i].shape)
 
 class AE(nn.Module):
@@ -197,17 +202,14 @@ models[5] = AE(256, 128, 64, 32, 16, 8,4)
 models[6] = AE(256, 128, 64, 32, 16, 8,4)
 models[7] = AE(512,256,128,64,32,8,4)
 models[8] = AE(512,256,128,64,32,8,4)
-layer_num=9
 if opt.moco_version==1:
     modles[9]=AE(128, 64, 32, 16,8,4,0)
-    layer_num=10
 elif opt.moco_version==2:
     models[9] = AE(512,256,128,64,32,8,4)
     models[10] = AE(512,256,128,64,32,8,4)
     models[11] = AE(512,256,128,64,32,8,4)
     models[12] = AE(512,256,128,64,32,8,4)
     models[13] = AE(128, 64, 32, 16,8,4,0)
-    layer_num=14
 
 optimizer=dict()
 schedular=dict()
