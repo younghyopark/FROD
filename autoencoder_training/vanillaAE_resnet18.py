@@ -49,6 +49,9 @@ parser.add_argument("--out_dataset9",default='uniform_noise')
 parser.add_argument('--outf',default='extracted_features')
 parser.add_argument('--resume',type=int, default=0)
 
+parser.add_argument('--moco_version','-v',type=int, default=0)
+
+
 opt = parser.parse_args()
 print(opt)
 
@@ -194,11 +197,21 @@ models[5] = AE(256, 128, 64, 32, 16, 8,4)
 models[6] = AE(256, 128, 64, 32, 16, 8,4)
 models[7] = AE(512,256,128,64,32,8,4)
 models[8] = AE(512,256,128,64,32,8,4)
-
+layer_num=9
+if opt.moco_version==1:
+    modles[9]=AE(128, 64, 32, 16,8,4,0)
+    layer_num=10
+elif opt.moco_version==2:
+    models[9] = AE(512,256,128,64,32,8,4)
+    models[10] = AE(512,256,128,64,32,8,4)
+    models[11] = AE(512,256,128,64,32,8,4)
+    models[12] = AE(512,256,128,64,32,8,4)
+    models[13] = AE(128, 64, 32, 16,8,4,0)
+    layer_num=14
 
 optimizer=dict()
 schedular=dict()
-for i in range(9):
+for i in range(layer_num):
     optimizer[i] = torch.optim.Adam(models[i].parameters(), opt.lr)
     schedular[i] = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer[i], T_max=opt.n_epochs, eta_min=0, last_epoch=-1)
    
@@ -206,7 +219,7 @@ for i in range(9):
 train_ind_loader=dict()
 test_ind_loader=dict()
 test_ood_loader=dict()
-for i in range(9):
+for i in range(layer_num):
     train_ind_loader[i] = torch.utils.data.DataLoader(torch.Tensor(train_data_ind[i]), batch_size=opt.batch_size, shuffle=True)
     test_ind_loader[i] = torch.utils.data.DataLoader(torch.Tensor(test_data_ind[i]), batch_size=opt.batch_size, shuffle=False)
     test_ood_loader[i]=[]
@@ -216,7 +229,7 @@ for i in range(9):
     models[i].train()
 
 if opt.resume==0:
-    for j in range(9):
+    for j in range(layer_num):
         for epoch in range(1, opt.n_epochs+ 1):
             avg_loss = 0
             step = 0
@@ -242,13 +255,13 @@ if opt.resume==0:
 
 if opt.resume==1:
     epoch = 500
-    for j in range(9):
+    for j in range(layer_num):
         ckpt_name = 'layer_{}'.format(j)
         tm = torch.load(os.path.join('trained_autoencoders','vanilla_AE',opt.backbone_name,ckpt_name + ".pth"))
         print('model {} loaded'.format(j))
 
 print('=== reconstruction error calculation on test data ===')
-for j in range(9):
+for j in range(layer_num):
     print('layer {}'.format(j))
     rc_error_ind = []
     for i, data in enumerate(tqdm(train_ind_loader[j])):

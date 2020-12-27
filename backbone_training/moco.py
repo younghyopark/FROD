@@ -316,7 +316,7 @@ def update_records(loss, loss_fn, optimizer, record_keeper, global_iteration):
 
 
 def save_model(encQ):
-    model_folder = "opt.backbone_name"
+    model_folder = opt.backbone_name
     if not os.path.exists(model_folder): os.makedirs(model_folder)
     torch.save(encQ.state_dict(), "{}/encQ_best.pth".format(model_folder))
 

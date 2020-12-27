@@ -10,16 +10,23 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--backbone_name",'-bn', type=str, required=True)
+parser.add_argument("--moco_version",'-v', type=int, default=1)
+
 opt = parser.parse_args()
 
 feature_name = opt.backbone_name
+
+if opt.moco_version ==1:
+    layer_num=10
+else:
+    layer_num=14
 
 for ood in ['svhn','imagenet_resize','lsun_resize','imagenet_fix','lsun_fix','place365','dtd','uniform_noise','gaussian_noise']:
     print(ood)
     ind_features=[]
     ind_train_features=[]
     ood_features=[]
-    for i in trange(9):
+    for i in trange(layer_num):
         data=np.load(os.path.join('extracted_features',feature_name,'Features_from_layer_{}_cifar10_original_train_ind.npy'.format(i)))
         ind_train_features.append(data)
 

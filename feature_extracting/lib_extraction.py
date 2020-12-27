@@ -49,3 +49,21 @@ def moco_features(model, test_loader, layer_index):
         
         features.extend(out_features.detach().cpu().numpy())    
     return features
+
+    
+
+def moco_features_ver2(model, test_loader, layer_index):
+    model.eval()
+    features = []
+    net=nn.Sequential(model.module.net[0:3],*model.module.net[3],*model.module.net[4],*model.module.net[5],*model.module.net[6],model.module.net[7],*model.module.net[8])
+    for data, target in tqdm(test_loader):
+        
+        data, target = data.cuda(), target.cuda()
+        data, target = Variable(data, requires_grad = True), Variable(target)
+        
+        out_features = net[0:layer_index+1](data)
+        out_features = out_features.view(out_features.size(0), out_features.size(1), -1)
+        out_features = torch.mean(out_features, 2)
+        
+        features.extend(out_features.detach().cpu().numpy())    
+    return features

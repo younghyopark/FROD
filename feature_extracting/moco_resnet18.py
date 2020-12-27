@@ -16,7 +16,7 @@ from tqdm import tqdm
 import torchvision.transforms as trn
 from tqdm import tqdm
 import torchvision.models as models
-from data_loader_unnormalize import getDataLoader
+from data_loader_normalize import getDataLoader
 from functools import partial
 from torchvision.models import resnet
 
@@ -34,8 +34,8 @@ parser = argparse.ArgumentParser(description='PyTorch code: Mahalanobis detector
 parser.add_argument('--batch_size', type=int, default=200, metavar='N', help='batch size for data loader')
 parser.add_argument('--dataset', default='cifar10', help='cifar10 | cifar100 | svhn')
 parser.add_argument('--outf', default='./extracted_features/', help='folder to output results')
-parser.add_argument('--backbone_name', required=True, help='')
-parser.add_argument('--gpu', required=True, type=int, default=0, help='gpu index')
+parser.add_argument('--backbone_name', '-bn',required=True, help='')
+parser.add_argument('--gpu', type=int, default=0, help='gpu index')
 parser.add_argument('--out_target', default=None, help='out_target')
 parser.add_argument('--out_dataset1', default='svhn', help='out_target')
 parser.add_argument('--out_dataset2', default='imagenet_resize', help='out_target')
@@ -46,14 +46,15 @@ parser.add_argument('--out_dataset6', default='place365', help='out_target')
 parser.add_argument('--out_dataset7', default='dtd', help='out_target')
 parser.add_argument('--out_dataset8', default='gaussian_noise', help='out_target')
 parser.add_argument('--out_dataset9', default='uniform_noise', help='out_target')
+parser.add_argument('--moco_ver', '-v',type=int,default=1)
+
 args = parser.parse_args()
 
 print(args)
 
 def main():
     device = torch.device("cuda")
-    torch.cuda.set_device(args.gpu)
-
+    
     class SplitBatchNorm(torch.nn.BatchNorm2d):
         def __init__(self, num_features, num_splits, **kw):
             super().__init__(num_features, **kw)
@@ -94,11 +95,10 @@ def main():
             for name, module in net.named_children():
                 if name == 'conv1':
                     module = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-                # if opt.moco_ver==2:
-                #     if name == 'fc':
-                #         dim_mlp = module.weight.shape[1]
-                #         print(dim_mlp)
-                #         module = nn.Sequential(nn.Linear(dim_mlp, dim_mlp), nn.ReLU(), module)
+                if args.moco_ver==2:
+                    if name == 'fc':
+                        dim_mlp = module.weight.shape[1]
+                        module = nn.Sequential(torch.nn.Flatten(1),nn.Linear(dim_mlp, dim_mlp), nn.ReLU(), nn.Linear(dim_mlp,feature_dim))
                 if isinstance(module, torch.nn.MaxPool2d):
                     continue
                 if isinstance(module, torch.nn.Linear):
@@ -159,7 +159,10 @@ def main():
     # num_output = len(temp_list)
 
     # print(num_output)
-    num_output =9
+    if args.moco_ver==1:
+        num_output =10
+    elif args.moco_ver==2:
+        num_output=14
 
     feature_list = np.empty(num_output)
     # count = 0
@@ -169,7 +172,10 @@ def main():
         
     print('get features for in-distribution samples')
     for i in tqdm(range(num_output)):
-        features = lib_extraction.moco_features(model, test_loader, i)
+        if args.moco_ver==1:
+            features = lib_extraction.moco_features(model, test_loader, i)
+        else:
+            features = lib_extraction.moco_features_ver2(model, test_loader, i)
 
         file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_original_test_ind.npy' % (str(i), args.dataset))
         features = np.asarray(features, dtype=np.float32)
@@ -177,7 +183,7 @@ def main():
         print(features.shape)
         np.save(file_name, features) 
     
-    print('get features scores for out-of-distribution samples')
+    print('get features for out-of-distribution samples')
     out_datasets_temp = [args.out_dataset1,args.out_dataset2,args.out_dataset3,args.out_dataset4,args.out_dataset5,args.out_dataset6,args.out_dataset7,args.out_dataset8,args.out_dataset9]
     out_datasets=[]
     for out in out_datasets_temp:
@@ -191,15 +197,21 @@ def main():
         out_test_loader = getDataLoader(out,args.batch_size,'valid')
 
         for i in tqdm(range(num_output)):
-            features = lib_extraction.moco_features(model, out_test_loader, i)
+            if args.moco_ver==1:
+                features = lib_extraction.moco_features(model, out_test_loader, i)
+            else:
+                features = lib_extraction.moco_features_ver2(model, out_test_loader, i)
 
             file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_original_test_ood.npy' % (str(i), out))
             features = np.asarray(features, dtype=np.float32)
             np.save(file_name, features) 
 
-    print('get Mahalanobis scores for in-distribution training samples')
+    print('get features for in-distribution training samples')
     for i in tqdm(range(num_output)):
-        features = lib_extraction.moco_features(model, train_loader, i)
+        if args.moco_ver==1:
+            features = lib_extraction.moco_features(model, train_loader, i)
+        else:
+            features = lib_extraction.moco_features_ver2(model, train_loader, i)
 
         file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_original_train_ind.npy' % (str(i), args.dataset))
         features = np.asarray(features, dtype=np.float32)

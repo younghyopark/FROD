@@ -5,6 +5,8 @@ from torchvision import datasets, transforms as trn
 from torch.utils.data import DataLoader
 from PIL import Image
 import random
+import torchvision.transforms.functional as TF
+
 
 class perm_4(object):
 

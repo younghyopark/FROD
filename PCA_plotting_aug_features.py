@@ -14,12 +14,12 @@ opt = parser.parse_args()
 
 feature_name = opt.backbone_name
 
-for ood in ['perm4']:
+for ood in ['rot']:
     print(ood)
     ind_features=[]
     ind_train_features=[]
     ood_features=[]
-    for i in trange(9):
+    for i in trange(10):
         data=np.load(os.path.join('extracted_features',feature_name,'Features_from_layer_{}_cifar10_original_train_ind.npy'.format(i)))
         ind_train_features.append(data)
 
