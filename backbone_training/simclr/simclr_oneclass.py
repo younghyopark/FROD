@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
 from torchvision.models import resnet18, resnet34
 from torchvision import transforms
+from oneclass_cifar10_dataset import oneclassCIFAR10
 
 from models import SimCLR
 from tqdm import tqdm
@@ -38,16 +39,10 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
-
-class oneclass_CIFAR10Pair():
-    """Generate one-class version of CIFAR10 dataset"""
-    def __init__(self,dataset,one_class_target):
-        self.targets = torch.tensor(dataset.targets)
-        self.data = dataset.data
-        idx = self.targets==1
-        self.targets= self.targets[idx]
-        self.data = self.data[idx.numpy().astype(np.bool)]
-
+        
+        
+class oneclassCIFAR10Pair(oneclassCIFAR10):
+    """Generate mini-batche pairs on CIFAR10 training set."""
     def __getitem__(self, idx):
         img, target = self.data[idx], self.targets[idx]
         img = Image.fromarray(img)  # .convert('RGB')
@@ -106,10 +101,10 @@ def train(args: DictConfig) -> None:
                                           get_color_distortion(s=0.5),
                                           transforms.ToTensor()])
     data_dir = hydra.utils.to_absolute_path(args.data_dir)  # get absolute path of data dir
-    train_set = oneclass_CIFAR10Pair(CIFAR10(root=data_dir,
+    train_set = oneclassCIFAR10Pair(root=data_dir,
                             train=True,
                             transform=train_transform,
-                            download=True),args.one_class)
+                            download=True,one_class_idx=args.one_class)
 
     train_loader = DataLoader(train_set,
                               batch_size=args.batch_size,
