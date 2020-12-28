@@ -218,7 +218,7 @@ for i in range(layer_num):
     optimizer[i] = torch.optim.Adam(models[i].parameters(), opt.lr)
     schedular[i] = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer[i], T_max=opt.n_epochs, eta_min=0, last_epoch=-1)
    
-    
+    å
 train_ind_loader=dict()
 test_ind_loader=dict()
 test_ood_loader=dict()
