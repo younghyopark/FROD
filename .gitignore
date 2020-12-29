@@ -142,3 +142,4 @@ moco_ver2_saved_models
 checkpoint
 example_logs
 dataset
+backbone_training/simclr/logs

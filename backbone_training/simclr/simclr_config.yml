@@ -7,7 +7,7 @@ hydra:
       handlers: [file, console]  # logging to file only.
   run:
     #dir: logs/${dataset}
-    dir: ./backbone_training/simclr/logs/simclr_oneclass_${one_class}
+    dir: ./backbone_training/simclr/logs/simclr_cifar10_oneclass_${one_class}
 
 
 dataset: cifar10
@@ -24,7 +24,7 @@ batch_size: 512
 workers: 16
 epochs: 1000
 log_interval: 50
-one_class: 0
+one_class: 8
 
 # loss options
 optimizer: 'sgd' # or LARS (experimental)
