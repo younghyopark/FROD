@@ -24,6 +24,21 @@ def get_features(model, test_loader, layer_index):
     
     return features
 
+def get_features_simclrFROD(model, test_loader, layer_index):
+    model.eval()
+    features = []
+
+    for data, target in test_loader:
+        
+        data, target = data.cuda(), target.cuda()
+        data, target = Variable(data, requires_grad = True), Variable(target)
+        
+        out_features = model.intermediate_features(data, layer_index)
+        
+        features.extend(out_features.detach().cpu().numpy())    
+    
+    return features
+
 def get_img(test_loader):
     features = []
     

@@ -11,6 +11,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--backbone_name",'-bn', type=str, required=True)
 parser.add_argument("--moco_version",'-v', type=int, default=1)
+parser.add_argument("--layer_num",'-l', type=int, default=1)
+
 
 opt = parser.parse_args()
 
@@ -20,6 +22,8 @@ if opt.moco_version ==1:
     layer_num=10
 else:
     layer_num=14
+
+layer_num = opt.layer_num
 
 for ood in ['svhn','imagenet_resize','lsun_resize','imagenet_fix','lsun_fix','place365','dtd','uniform_noise','gaussian_noise']:
     print(ood)

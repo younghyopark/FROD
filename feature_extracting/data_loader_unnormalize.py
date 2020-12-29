@@ -159,6 +159,30 @@ def getDataLoader(dataset, batch_size, split, droot='./data',type='loader'):
                 batch_size=batch_size, shuffle=False)
         print('cifar10 loaded')
 
+    elif dataset in ['cifar100']:
+            
+        transform_train = trn.Compose([
+                trn.ToTensor(), 
+            ])
+
+        transform_test = trn.Compose([
+                trn.CenterCrop(size=(32, 32)),
+                trn.ToTensor(),
+                # normalize
+            ])
+   
+        if split=='train':
+            loader = torch.utils.data.DataLoader(
+                datasets.CIFAR100(droot, train=True, download=True,
+                            transform=transform_train),
+                batch_size=batch_size, shuffle=False)
+        else:
+            loader = torch.utils.data.DataLoader(
+                datasets.CIFAR100(droot, train=False, transform=transform_test),
+                batch_size=batch_size, shuffle=False)
+        print('cifar10 loaded')
+
+        
     elif dataset in ['svhn']:
         mean = np.array([[0.4914, 0.4822, 0.4465]]).T
         std = np.array([[0.2023, 0.1994, 0.2010]]).T
@@ -248,7 +272,7 @@ def getDataLoader(dataset, batch_size, split, droot='./data',type='loader'):
 
 
 
-def getAugDataLoader(dataset, batch_size, split, droot='./data',type='loader',augmentation):
+def getAugDataLoader(dataset, batch_size, split, droot='./data',type='loader',augmentation='perm4'):
     if dataset in ['cifar10']:
         mean = np.array([[0.4914, 0.4822, 0.4465]]).T
         std = np.array([[0.2023, 0.1994, 0.2010]]).T
