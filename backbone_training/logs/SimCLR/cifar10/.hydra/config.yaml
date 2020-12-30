@@ -1,13 +1,12 @@
 dataset: cifar10
-data_dir: ./data
-backbone: resnet18
+data_dir: data
+backbone: resnet34
 projection_dim: 128
 seed: 42
 batch_size: 512
 workers: 16
 epochs: 1000
 log_interval: 50
-one_class: 0
 optimizer: sgd
 learning_rate: 0.6
 momentum: 0.9

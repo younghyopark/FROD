@@ -1,6 +1,6 @@
 hydra:
   run:
-    dir: ./backbone_training/simclr/logs/simclr_oneclass_${one_class}
+    dir: logs/SimCLR/simclr_FROD
   sweep:
     dir: multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
     subdir: ${hydra.job.num}
@@ -107,7 +107,7 @@ hydra:
     hydra: []
     task: []
   job:
-    name: simclr_oneclass
+    name: simclr_for_FROD
     override_dirname: ''
     id: ???
     num: ???
@@ -121,5 +121,5 @@ hydra:
         exclude_keys: []
   runtime:
     version: 1.0.4
-    cwd: /HDD0/ParkYH/FROD
+    cwd: /HDD0/ParkYH/SimCLR-CIFAR10
   verbose: false

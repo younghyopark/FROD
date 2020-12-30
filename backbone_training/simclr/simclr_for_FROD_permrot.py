@@ -136,7 +136,45 @@ class CIFAR10Pair(CIFAR10):
         imgs = [self.transform(img), self.transform(img)]
         return torch.stack(imgs), target  # stack a positive pair
 
+class perm_4(object):
 
+    def __call__(self, img):
+        split=4
+        C, H, W = img.size()
+        h = H // split #16
+        w = W // split #16
+        split_img = []
+        for i in range(split):
+            for j in range(split):
+                split_img.append(img[:, i * h : (i + 1) * h, j * w : (j + 1) * w])
+        split_img = torch.stack(split_img) #s*s, C, h, w
+
+        rand = torch.rand(1, split * split)
+        batch_rand_perm = (rand.argsort(dim=1))[0] # s*s
+
+        rows = []
+        for r in range(split):
+            cols = []
+            for c in range(split):
+                cols.append(split_img[batch_rand_perm[r * split + c]])
+            cols = torch.cat(cols,2)
+            rows.append(cols)
+        rows = torch.cat(rows,1)
+
+        return rows
+        
+    def __repr__(self):
+        return self.__class__.__name__+'()'
+
+class rand_rot90(object):
+
+    def __call__(self, img):
+        img = torch.rot90(img, torch.randint(1,4,(1,))[0], [1,2])
+        return img
+        
+    def __repr__(self):
+        return self.__class__.__name__+'()'
+    
 def nt_xent(x, t=0.5):
     x = F.normalize(x, dim=1)
     x_scores =  (x @ x.t()).clamp(min=1e-7)  # normalized cosine similarity scores
@@ -178,24 +216,41 @@ def train(args: DictConfig) -> None:
                                           transforms.RandomHorizontalFlip(p=0.5),
                                           get_color_distortion(s=0.5),
                                           transforms.ToTensor()])
-    original_train_transform = transforms.Compose([transforms.RandomResizedCrop(32),
-                                          transforms.RandomHorizontalFlip(p=0.5),
-                                          transforms.ToTensor()])
+#     original_train_transform = transforms.Compose([transforms.RandomResizedCrop(32),
+#                                           transforms.RandomHorizontalFlip(p=0.5),
+#                                           transforms.ToTensor()])
+    ood_train_transform = transforms.Compose([transforms.RandomResizedCrop(32),
+                                          transforms.ToTensor(),
+                                          transforms.RandomApply([perm_4()],p=0.5),
+                                          rand_rot90()])
+
     data_dir = hydra.utils.to_absolute_path(args.data_dir)  # get absolute path of data dir
+    
     train_set = CIFAR10Pair(root=data_dir,
                             train=True,
                             transform=train_transform,
                             download=True)
-    original_train_set = CIFAR10(root=data_dir,
-                            train=True,
-                            transform=original_train_transform,
-                            download=True)
+#     original_train_set = CIFAR10(root=data_dir,
+#                             train=True,
+#                             transform=original_train_transform,
+#                             download=True)
+    
     train_loader = DataLoader(train_set,
                               batch_size=args.batch_size,
                               shuffle=True,
                               num_workers=args.workers,
                               drop_last=True)
-    original_train_loader = DataLoader(original_train_set,
+#     original_train_loader = DataLoader(original_train_set,
+#                               batch_size=args.batch_size,
+#                               shuffle=True,
+#                               num_workers=args.workers,
+#                               drop_last=True)
+    
+    ood_train_set = CIFAR10(root=data_dir,
+                            train=True,
+                            transform=ood_train_transform,
+                            download=True)
+    ood_train_loader = DataLoader(ood_train_set,
                               batch_size=args.batch_size,
                               shuffle=True,
                               num_workers=args.workers,
@@ -227,34 +282,45 @@ def train(args: DictConfig) -> None:
     # SimCLR training
     model.train()
     for epoch in range(1, args.epochs + 1):
+        
+        if epoch>args.warmup_epoch and epoch%args.FROD_epoch==1: print('Training Autoencoder for this epoch!')
+        
         loss_meter = AverageMeter("total loss")
         simclr_loss_meter = AverageMeter("SimCLR loss")
-        ae_loss_meter = AverageMeter("AE loss")
+        ae_ind_loss_meter = AverageMeter("AE_IND loss")
+        ae_ood_loss_meter = AverageMeter("AE_OOD loss")
         train_bar = tqdm(train_loader)
-        for (x, y),(x_org,y_org) in zip(train_bar,original_train_loader):
+        for count,((x, y),(x_ood,y_ood)) in enumerate(zip(train_bar,ood_train_loader)):
             sizes = x.size()
             x = x.view(sizes[0] * 2, sizes[2], sizes[3], sizes[4]).cuda(non_blocking=True)
-            x_org = x_org.cuda()
+            x_ood = x_ood.cuda()
             
             optimizer.zero_grad()
             feature, rep = model(x)
             loss = nt_xent(rep, args.temperature)
-            for i in range(model.midlayers_num):
-#             i= model.midlayers_num-1
-                loss+=0.1*torch.mean(model.recon_error(x_org,i))/model.midlayers_num
+            if epoch==1 and count==0:
+                loss1=(torch.mean(model.recon_error(x,0)))/model.midlayers_num
+                loss2=(torch.mean(model.recon_error(x_ood,0)))/model.midlayers_num
+            if epoch>args.warmup_epoch and epoch%args.FROD_epoch==1:
+                for i in range(model.midlayers_num):
+    #             i= model.midlayers_num-1
+                    loss1=(torch.mean(model.recon_error(x,i)))/model.midlayers_num
+                    loss2=(torch.mean(model.recon_error(x_ood,i)))/model.midlayers_num
+                    loss+=args.AE_coef*(3*loss1-loss2)
             loss.backward()
             optimizer.step()
             scheduler.step()
 
             loss_meter.update(loss.item(), x.size(0))
             simclr_loss_meter.update(nt_xent(rep, args.temperature).item(), x.size(0))
-            ae_loss_meter.update((loss.item()-nt_xent(rep, args.temperature).item())*100, x.size(0))
+            ae_ind_loss_meter.update(loss1.item(), x.size(0))
+            ae_ood_loss_meter.update(loss2.item(), x.size(0))
 
-            train_bar.set_description("Train epoch {}, Total loss: {:.4f}, SimCLR loss: {:.4f}, AE loss: {:.4f}".format(epoch, loss_meter.avg,simclr_loss_meter.avg, ae_loss_meter.avg))
+            train_bar.set_description("Train epoch {}, Total loss: {:.4f}, SimCLR loss: {:.4f}, AE IND loss: {:.4f}, AE OOD loss: {:.4f}".format(epoch, loss_meter.avg,simclr_loss_meter.avg, ae_ind_loss_meter.avg, ae_ood_loss_meter.avg))
 
         # save checkpoint very log_interval epochs
         if epoch % args.log_interval == 0:
-            logger.info("Train epoch {}, Total loss: {:.4f}, SimCLR loss: {:.4f}, AE loss: {:.4f}".format(epoch, loss_meter.avg,simclr_loss_meter.avg, ae_loss_meter.avg))
+#             logger.info("Train epoch {}, Total loss: {:.4f}, SimCLR loss: {:.4f}, AE loss: {:.4f}".format(epoch, loss_meter.avg,simclr_loss_meter.avg, ae_loss_meter.avg))
             torch.save(model.state_dict(), '{}.pth'.format(args.bn))
 
 
