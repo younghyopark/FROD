@@ -129,7 +129,8 @@ dmypy.json
 .pyre/
 
 data
-*.pth 
+*.pth
+*.pt 
 *.npy
 events.*
 *.html
@@ -143,3 +144,4 @@ checkpoint
 example_logs
 dataset
 backbone_training/simclr/logs
+.pt

@@ -7,6 +7,7 @@ import argparse
 import torch
 import numpy as np
 import os
+import lib_extraction
 # from OOD_Regression_Mahalanobis import main as regression
 import torchvision 
 from torchvision import transforms
@@ -16,6 +17,9 @@ import torchvision.transforms as trn
 from tqdm import tqdm
 import torchvision.models as models
 from data_loader_unnormalize import getDataLoader
+from one_class_cifar10_dataset import oneclassCIFAR10, remainingclassCIFAR10
+from torch.utils.data import DataLoader
+
 
 import os
 import math
@@ -33,36 +37,10 @@ parser.add_argument('--dataset', default='cifar10', help='cifar10 | cifar100 | s
 parser.add_argument('--outf', default='./extracted_features/', help='folder to output results')
 parser.add_argument('--backbone_name', required=True, help='')
 parser.add_argument('--gpu', required=True, type=int, default=0, help='gpu index')
-parser.add_argument('--out_target', default=None, help='out_target')
-parser.add_argument('--out_dataset1', default='svhn', help='out_target')
-parser.add_argument('--out_dataset2', default='imagenet_resize', help='out_target')
-parser.add_argument('--out_dataset3', default='lsun_resize', help='out_target')
-parser.add_argument('--out_dataset4', default='imagenet_fix', help='out_target')
-parser.add_argument('--out_dataset5', default='lsun_fix', help='out_target')
-parser.add_argument('--out_dataset6', default=None, help='out_target')
-parser.add_argument('--out_dataset7', default=None, help='out_target')
-parser.add_argument('--out_dataset8', default=None, help='out_target')
-parser.add_argument('--out_dataset9', default=None, help='out_target')
-# parser.add_argument('--out_dataset6', default='place365', help='out_target')
-# parser.add_argument('--out_dataset7', default='dtd', help='out_target')
-# parser.add_argument('--out_dataset8', default='gaussian_noise', help='out_target')
-# parser.add_argument('--out_dataset9', default='uniform_noise', help='out_target')
-parser.add_argument('--feature_extraction_type','-fet', help='mean | max | min | gram_max | gram_sum', default='mean')
-
+parser.add_argument('--one_class', type=int,default=None, help='out_target')
 args = parser.parse_args()
 
 print(args)
-
-if args.feature_extraction_type=='mean':
-    from lib_extraction import get_features
-elif args.feature_extraction_type=='max':
-    from lib_extraction import get_features_max as get_features
-elif args.feature_extraction_type=='min':
-    from lib_extraction import get_features_min as get_features
-elif args.feature_extraction_type=='gram_max':
-    from lib_extraction import get_features_gram_max as get_features
-elif args.feature_extraction_type=='gram_mean':
-    from lib_extraction import get_features_gram_mean as get_features
 
 def main():
     class SimCLR(nn.Module):
@@ -157,8 +135,41 @@ def main():
     print('load model: ')
     
     # load dataset
-    train_loader = getDataLoader(args.dataset,args.batch_size,'train')
-    test_loader = getDataLoader(args.dataset,args.batch_size,'valid')
+    train_transform = transforms.Compose([
+                                          transforms.ToTensor()])
+
+    train_set = oneclassCIFAR10(root='./data',
+                            train=True,
+                            transform=train_transform,
+                            download=True,one_class_idx=args.one_class)
+
+    train_loader = DataLoader(train_set,
+                              batch_size=args.batch_size,
+                              shuffle=False,
+                              num_workers=8,
+                              drop_last=True)
+
+    test_set = oneclassCIFAR10(root='./data',
+                            train=False,
+                            transform=train_transform,
+                            download=True,one_class_idx=args.one_class)
+
+    test_loader = DataLoader(test_set,
+                              batch_size=args.batch_size,
+                              shuffle=False,
+                              num_workers=8,
+                              drop_last=True)
+    
+    out_test_set = remainingclassCIFAR10(root='./data',
+                            train=False,
+                            transform=train_transform,
+                            download=True,one_class_idx=args.one_class)
+
+    out_test_loader = DataLoader(out_test_set,
+                              batch_size=args.batch_size,
+                              shuffle=False,
+                              num_workers=8,
+                              drop_last=True)
 
     # set information about feature extaction
     model.eval()
@@ -175,41 +186,30 @@ def main():
         feature_list[count] = out.size(1)
         count += 1
         
-    print('get {} features for in-distribution samples'.format(args.feature_extraction_type))
+    print('get features for in-distribution samples')
     for i in tqdm(range(num_output)):
-        features = get_features(model, test_loader, i)
-        
-        file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_%s_test_ind.npy' % (str(i), args.dataset,args.feature_extraction_type))
+        features = lib_extraction.get_features(model, test_loader, i)
+
+        file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_original_test_ind.npy' % (str(i), args.dataset))
         features = np.asarray(features, dtype=np.float32)
         print('layer= ',i)
         print(features.shape)
         np.save(file_name, features) 
     
-    print('get {} features for out-of-distribution samples'.format(args.feature_extraction_type))
-    out_datasets_temp = [args.out_dataset1,args.out_dataset2,args.out_dataset3,args.out_dataset4,args.out_dataset5,args.out_dataset6,args.out_dataset7,args.out_dataset8,args.out_dataset9]
-    out_datasets=[]
-    for out in out_datasets_temp:
-        if out is not None:
-            out_datasets.append(out)
+    print('get features scores for out-of-distribution samples')
             
-    for out in out_datasets:
-        print('out')
-        print('')
-
-        out_test_loader = getDataLoader(out,args.batch_size,'valid')
-
-        for i in tqdm(range(num_output)):
-            features = get_features(model, out_test_loader, i)
-
-            file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_%s_test_ood.npy' % (str(i), out,args.feature_extraction_type))
-            features = np.asarray(features, dtype=np.float32)
-            np.save(file_name, features) 
-
-    print('get {} features for in-distribution training samples'.format(args.feature_extraction_type))
     for i in tqdm(range(num_output)):
-        features = get_features(model, train_loader, i)
+        features = lib_extraction.get_features(model, out_test_loader, i)
 
-        file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_%s_train_ind.npy' % (str(i), args.dataset,args.feature_extraction_type))
+        file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_original_test_ood.npy' % (str(i), args.dataset))
+        features = np.asarray(features, dtype=np.float32)
+        np.save(file_name, features) 
+
+    print('get Mahalanobis scores for in-distribution training samples')
+    for i in tqdm(range(num_output)):
+        features = lib_extraction.get_features(model, train_loader, i)
+
+        file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_original_train_ind.npy' % (str(i), args.dataset))
         features = np.asarray(features, dtype=np.float32)
         np.save(file_name, features) 
 

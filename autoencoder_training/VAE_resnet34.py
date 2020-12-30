@@ -47,8 +47,6 @@ parser.add_argument("--out_dataset8",default='gaussian_noise')
 parser.add_argument("--out_dataset9",default='uniform_noise')
 parser.add_argument('--outf',default='extracted_features')
 parser.add_argument('--moco_version','-v',type=int, default=0)
-parser.add_argument('--feature_extraction_type','-fet',type=str, default='mean')
-
 
 
 opt = parser.parse_args()
@@ -75,7 +73,7 @@ if opt.dataset in ['cifar100','cifar10','svhn']:
 else:
     num_out_datasets = 1
     out_dataset = ['MNIST']
-layer_num=9
+layer_num=17
 if opt.moco_version==1:
     layer_num=10
 elif opt.moco_version==2:
@@ -89,11 +87,11 @@ num_ood=dict()
 for i in range(layer_num):
     test_ood_feature[i]=[]
     num_ood[i]=[]
-    train_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+opt.feature_extraction_type+'_train_ind.npy'))
-    test_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+opt.feature_extraction_type+'_test_ind.npy'))
+    train_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+'original'+'_train_ind.npy'))
+    test_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+'original'+'_test_ind.npy'))
     print(num_out_datasets)
     for j in range(num_out_datasets):
-        test_ood_feature[i].append(np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+out_dataset[j]+'_'+opt.feature_extraction_type+'_test_ood.npy')))
+        test_ood_feature[i].append(np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+out_dataset[j]+'_'+'original'+'_test_ood.npy')))
         num_ood[i].append(test_ood_feature[i][j].shape[0])
 train_data_ind = train_ind_feature
 test_data_ind = test_ind_feature
@@ -167,6 +165,29 @@ models[5] = VAE(256, 128, 64, 16)
 models[6] = VAE(256, 128, 64, 16)
 models[7] = VAE(512, 256, 128, 16)
 models[8] = VAE(512, 256, 128, 16)
+
+models=dict()
+models[0] = VAE(64, 32, 16, 4)
+models[1] = VAE(64, 32, 16, 4)
+models[2] = VAE(64, 32, 16, 4)
+models[3] = VAE(64, 32, 16, 4)
+
+models[4] = VAE(128, 64, 32, 8)
+models[5] = VAE(128, 64, 32, 8)
+models[6] = VAE(128, 64, 32, 8)
+models[7] = VAE(128, 64, 32, 8)
+
+models[8] = VAE(256, 128, 64, 16)
+models[9] = VAE(256, 128, 64, 16)
+models[10] = VAE(256, 128, 64, 16)
+models[11] = VAE(256, 128, 64, 16)
+models[12] = VAE(256, 128, 64, 16)
+models[13] = VAE(256, 128, 64, 16)
+
+models[14] = VAE(512, 256, 128, 16)
+models[15] = VAE(512, 256, 128, 16)
+models[16] = VAE(512, 256, 128, 16)
+
 if opt.moco_version==1:
     models[9]=VAE(128, 64, 32, 8)
 elif opt.moco_version==2:
@@ -217,7 +238,7 @@ for j in range(layer_num):
         if epoch % opt.ckpt_epoch == 0:
             model_state = models[j].state_dict()
             #print(model_state)
-            ckpt_name = 'layer_{}_{}_epoch_{}_model1'.format(j,epoch,opt.feature_extraction_type)
+            ckpt_name = 'layer_{}_{}_epoch_model1'.format(j,epoch)
             ckpt_path = os.path.join('trained_autoencoders/VAE',opt.backbone_name,ckpt_name + ".pth")
             torch.save(model_state, ckpt_path)
 
@@ -243,13 +264,13 @@ for j in range(layer_num):
     elbo_ind_total_np = elbo_ind_total.detach().cpu().numpy()  
     
     ind_score = -rc_error_ind_total_np
-    l0 = open('./trained_autoencoders/VAE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}_{}_train.txt'.format(j,opt.dataset,epoch,opt.feature_extraction_type), 'w')
+    l0 = open('./trained_autoencoders/VAE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}_train.txt'.format(j,opt.dataset,epoch), 'w')
     for i in range(ind_score.shape[0]):
         l0.write("{}\n".format(ind_score[i]))
     l0.close()
     
     ind_score = -elbo_ind_total_np
-    l0_elbo = open('./trained_autoencoders/VAE/'+opt.backbone_name+'/elbo_layer_{}_in_{}_epoch_{}_{}_train.txt'.format(j,opt.dataset,epoch,opt.feature_extraction_type), 'w')
+    l0_elbo = open('./trained_autoencoders/VAE/'+opt.backbone_name+'/elbo_layer_{}_in_{}_epoch_{}_train.txt'.format(j,opt.dataset,epoch), 'w')
     for i in range(ind_score.shape[0]):
         l0_elbo.write("{}\n".format(ind_score[i]))
     l0_elbo.close()
@@ -269,13 +290,13 @@ for j in range(layer_num):
     elbo_ind_total_np = elbo_ind_total.detach().cpu().numpy() 
     
     ind_score = -rc_error_ind_total_np
-    l1 = open('./trained_autoencoders/VAE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}_{}.txt'.format(j,opt.dataset,epoch,opt.feature_extraction_type), 'w')
+    l1 = open('./trained_autoencoders/VAE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}.txt'.format(j,opt.dataset,epoch), 'w')
     for i in range(ind_score.shape[0]):
         l1.write("{}\n".format(ind_score[i]))
     l1.close()
     
     ind_score = -elbo_ind_total_np
-    l1_elbo = open('./trained_autoencoders/VAE/'+opt.backbone_name+'/elbo_layer_{}_in_{}_epoch_{}_{}.txt'.format(j,opt.dataset,epoch,opt.feature_extraction_type), 'w')
+    l1_elbo = open('./trained_autoencoders/VAE/'+opt.backbone_name+'/elbo_layer_{}_in_{}_epoch_{}.txt'.format(j,opt.dataset,epoch), 'w')
     for i in range(ind_score.shape[0]):
         l1_elbo.write("{}\n".format(ind_score[i]))
     l1_elbo.close()
@@ -296,13 +317,13 @@ for j in range(layer_num):
         elbo_ood_total_np = elbo_ood_total.detach().cpu().numpy()    
 
         ood_score = -rc_error_ood_total_np
-        l2 = open('./trained_autoencoders/VAE/'+opt.backbone_name+'/confidence_layer_{}_out_{}_epoch_{}_{}_model1.txt'.format(j,out_dataset[out_n],epoch,opt.feature_extraction_type), 'w')
+        l2 = open('./trained_autoencoders/VAE/'+opt.backbone_name+'/confidence_layer_{}_out_{}_epoch_{}_model1.txt'.format(j,out_dataset[out_n],epoch), 'w')
         for i in range(ood_score.shape[0]):
             l2.write("{}\n".format(ood_score[i]))
         l2.close()
             
         ood_score = -elbo_ood_total_np
-        l2_elbo = open('./trained_autoencoders/VAE/'+opt.backbone_name+'/elbo_layer_{}_out_{}_epoch_{}_{}_model1.txt'.format(j,out_dataset[out_n],epoch,opt.feature_extraction_type), 'w')
+        l2_elbo = open('./trained_autoencoders/VAE/'+opt.backbone_name+'/elbo_layer_{}_out_{}_epoch_{}_model1.txt'.format(j,out_dataset[out_n],epoch), 'w')
         for i in range(ood_score.shape[0]):
             l2_elbo.write("{}\n".format(ood_score[i]))
         l2_elbo.close()

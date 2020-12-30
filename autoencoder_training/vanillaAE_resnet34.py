@@ -26,7 +26,7 @@ import shutil
 from plotly.offline import plot
 import plotly.graph_objs as go
 import matplotlib.pyplot as plt
-#python ./autoencoder_training/vanillaAE_resnet18.py --backbone_name resnet18_vanilla_simclr_svhn --gpu 6 --dataset svhn --out_dataset cifar10 --out_dataset9 cifar100
+#python ./autoencoder_training/vanillaAE_resnet34.py --backbone_name resnet34_vanilla_simclr_cifar10 --gpu 6 --dataset cifar10
 parser = argparse.ArgumentParser()
 parser.add_argument("--n_epochs", type=int, default=500, help="number of epochs of training")
 parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
@@ -75,7 +75,7 @@ if opt.dataset in ['cifar100','cifar10','svhn']:
 else:
     num_out_datasets = 1
     out_dataset = ['MNIST']
-layer_num=9
+layer_num=17
 if opt.moco_version==1:
     layer_num=10
 elif opt.moco_version==2:
@@ -194,14 +194,24 @@ models=dict()
 models[0] = AE(64, 32, 16, 8,4,0,0)
 models[1] = AE(64, 32, 16, 8,4,0,0)
 models[2] = AE(64, 32, 16, 8,4,0,0)
+models[3] = AE(64, 32, 16, 8,4,0,0)
 
-models[3] = AE(128, 64, 32, 16,8,4,0)
 models[4] = AE(128, 64, 32, 16,8,4,0)
+models[5] = AE(128, 64, 32, 16,8,4,0)
+models[6] = AE(128, 64, 32, 16,8,4,0)
+models[7] = AE(128, 64, 32, 16,8,4,0)
 
-models[5] = AE(256, 128, 64, 32, 16, 8,4)
-models[6] = AE(256, 128, 64, 32, 16, 8,4)
-models[7] = AE(512,256,128,64,32,8,4)
-models[8] = AE(512,256,128,64,32,8,4)
+models[8] = AE(256, 128, 64, 32, 16, 8,4)
+models[9] = AE(256, 128, 64, 32, 16, 8,4)
+models[10] = AE(256, 128, 64, 32, 16, 8,4)
+models[11] = AE(256, 128, 64, 32, 16, 8,4)
+models[12] = AE(256, 128, 64, 32, 16, 8,4)
+models[13] = AE(256, 128, 64, 32, 16, 8,4)
+
+models[14] = AE(512,256,128,64,32,8,4)
+models[15] = AE(512,256,128,64,32,8,4)
+models[16] = AE(512,256,128,64,32,8,4)
+
 if opt.moco_version==1:
     models[9]=AE(128, 64, 32, 16,8,4,0)
 elif opt.moco_version==2:

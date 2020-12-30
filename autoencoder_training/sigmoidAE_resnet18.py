@@ -26,7 +26,7 @@ import shutil
 from plotly.offline import plot
 import plotly.graph_objs as go
 import matplotlib.pyplot as plt
-#python ./autoencoder_training/vanillaAE_resnet18.py --backbone_name resnet18_vanilla_simclr_svhn --gpu 6 --dataset svhn --out_dataset cifar10 --out_dataset9 cifar100
+#python ./autoencoder_training/sigmoidAE_resnet18.py --backbone_name resnet18_vanilla_simclr_cifar10 --gpu 6 --dataset cifar10
 parser = argparse.ArgumentParser()
 parser.add_argument("--n_epochs", type=int, default=500, help="number of epochs of training")
 parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
@@ -60,7 +60,7 @@ cuda = True if torch.cuda.is_available() else False
 device = torch.device('cuda')
 torch.cuda.set_device(opt.gpu)
 
-writer = SummaryWriter(logdir=os.path.join('trained_autoencoders','vanilla_AE',opt.backbone_name))
+writer = SummaryWriter(logdir=os.path.join('trained_autoencoders','sigmoid_AE',opt.backbone_name))
 
 out_dataset = []
 num_out_datasets=0
@@ -152,7 +152,7 @@ class Encoder(nn.Module):
             h = self.fc4(h)
         else:
             h = self.fc3(h)
-        return h
+        return torch.sigmoid(h)
     
     
 class Generator(nn.Module):
@@ -252,14 +252,14 @@ if opt.resume==0:
                 model_state = models[j].state_dict()
                 #print(model_state)
                 ckpt_name = 'layer_{}_epoch_{}'.format(j,epoch)
-                ckpt_path = os.path.join('trained_autoencoders','vanilla_AE',opt.backbone_name,ckpt_name + ".pth")
+                ckpt_path = os.path.join('trained_autoencoders','sigmoid_AE',opt.backbone_name,ckpt_name + ".pth")
                 torch.save(model_state, ckpt_path)
 
 if opt.resume==1:
     epoch = 500
     for j in range(layer_num):
         ckpt_name = 'layer_{}'.format(j)
-        tm = torch.load(os.path.join('trained_autoencoders','vanilla_AE',opt.backbone_name,ckpt_name + ".pth"))
+        tm = torch.load(os.path.join('trained_autoencoders','sigmoid_AE',opt.backbone_name,ckpt_name + ".pth"))
         print('model {} loaded'.format(j))
 
 print('=== reconstruction error calculation on test data ===')
@@ -274,7 +274,7 @@ for j in range(layer_num):
     rc_error_ind_total = torch.cat(rc_error_ind,0)   
     rc_error_ind_total_np = rc_error_ind_total.detach().cpu().numpy()  
     ind_score = -rc_error_ind_total_np
-    l0 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}_train.txt'.format(j,opt.dataset,epoch), 'w')
+    l0 = open('./trained_autoencoders/sigmoid_AE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}_train.txt'.format(j,opt.dataset,epoch), 'w')
     for i in range(ind_score.shape[0]):
         l0.write("{}\n".format(ind_score[i]))
     l0.close()
@@ -288,7 +288,7 @@ for j in range(layer_num):
     rc_error_ind_total = torch.cat(rc_error_ind,0)   
     rc_error_ind_total_np = rc_error_ind_total.detach().cpu().numpy()  
     ind_score = -rc_error_ind_total_np
-    l1 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}.txt'.format(j,opt.dataset,epoch), 'w')
+    l1 = open('./trained_autoencoders/sigmoid_AE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}.txt'.format(j,opt.dataset,epoch), 'w')
     for i in range(ind_score.shape[0]):
         l1.write("{}\n".format(ind_score[i]))
     l1.close()
@@ -304,7 +304,7 @@ for j in range(layer_num):
         rc_error_ood_total_np = rc_error_ood_total.detach().cpu().numpy()        
 
         ood_score = -rc_error_ood_total_np
-        l2 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_out_{}_epoch_{}_model1.txt'.format(j,out_dataset[out_n],epoch), 'w')
+        l2 = open('./trained_autoencoders/sigmoid_AE/'+opt.backbone_name+'/confidence_layer_{}_out_{}_epoch_{}_model1.txt'.format(j,out_dataset[out_n],epoch), 'w')
         for i in range(ood_score.shape[0]):
             l2.write("{}\n".format(ood_score[i]))
         l2.close()

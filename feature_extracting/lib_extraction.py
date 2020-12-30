@@ -24,6 +24,79 @@ def get_features(model, test_loader, layer_index):
     
     return features
 
+def get_features_max(model, test_loader, layer_index):
+    model.eval()
+    features = []
+
+    for data, target in test_loader:
+        
+        data, target = data.cuda(), target.cuda()
+        data, target = Variable(data, requires_grad = True), Variable(target)
+        
+        out_features = model.intermediate_forward(data, layer_index)
+        out_features = out_features.view(out_features.size(0), out_features.size(1), -1)
+        out_features,_ = torch.max(out_features, 2)
+        
+        features.extend(out_features.detach().cpu().numpy())    
+    
+    return features
+
+def get_features_min(model, test_loader, layer_index):
+    model.eval()
+    features = []
+
+    for data, target in test_loader:
+        
+        data, target = data.cuda(), target.cuda()
+        data, target = Variable(data, requires_grad = True), Variable(target)
+        
+        out_features = model.intermediate_forward(data, layer_index)
+        out_features = out_features.view(out_features.size(0), out_features.size(1), -1)
+        out_features,_ = torch.min(out_features, 2)
+        
+        features.extend(out_features.detach().cpu().numpy())    
+    
+    return features
+
+def get_features_gram_max(model, test_loader, layer_index):
+    model.eval()
+    features = []
+
+    for data, target in test_loader:
+         
+        data, target = data.cuda(), target.cuda()
+        data, target = Variable(data, requires_grad = True), Variable(target)
+        
+        out_features = model.intermediate_forward(data, layer_index)
+        out_features = out_features.view(out_features.size(0), out_features.size(1), -1)
+        out_features_transpose = torch.transpose(out_features, 1,2)
+        out_features = torch.matmul(out_features, torch.transpose(out_features,1,2))
+        out_features,_ = torch.max(out_features, 2)
+        
+        features.extend(out_features.detach().cpu().numpy()) 
+    
+    return features
+
+def get_features_gram_mean(model, test_loader, layer_index):
+    model.eval()
+    features = []
+
+    for data, target in test_loader:
+         
+        data, target = data.cuda(), target.cuda()
+        data, target = Variable(data, requires_grad = True), Variable(target)
+        
+        out_features = model.intermediate_forward(data, layer_index)
+        out_features = out_features.view(out_features.size(0), out_features.size(1), -1)
+        out_features_transpose = torch.transpose(out_features, 1,2)
+        out_features = torch.matmul(out_features, torch.transpose(out_features,1,2))
+        out_features = torch.mean(out_features, 2)
+        
+        features.extend(out_features.detach().cpu().numpy()) 
+    
+    return features
+
+
 def get_features_simclrFROD(model, test_loader, layer_index):
     model.eval()
     features = []

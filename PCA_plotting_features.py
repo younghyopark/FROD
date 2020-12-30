@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--backbone_name",'-bn', type=str, required=True)
 parser.add_argument("--moco_version",'-v', type=int, default=1)
 parser.add_argument("--layer_num",'-l', type=int, default=1)
-
+parser.add_argument("--feature_extraction_type",'-fet', type=str, default='mean')
 
 opt = parser.parse_args()
 
@@ -25,18 +25,18 @@ else:
 
 layer_num = opt.layer_num
 
-for ood in ['svhn','imagenet_resize','lsun_resize','imagenet_fix','lsun_fix','place365','dtd','uniform_noise','gaussian_noise']:
+for ood in ['svhn','imagenet_resize','lsun_resize','imagenet_fix','lsun_fix']:
     print(ood)
     ind_features=[]
     ind_train_features=[]
     ood_features=[]
     for i in trange(layer_num):
-        data=np.load(os.path.join('extracted_features',feature_name,'Features_from_layer_{}_cifar10_original_train_ind.npy'.format(i)))
+        data=np.load(os.path.join('extracted_features',feature_name,'Features_from_layer_{}_cifar10_{}_train_ind.npy'.format(i,opt.feature_extraction_type)))
         ind_train_features.append(data)
 
-        data=np.load(os.path.join('extracted_features',feature_name,'Features_from_layer_{}_cifar10_original_test_ind.npy'.format(i)))
+        data=np.load(os.path.join('extracted_features',feature_name,'Features_from_layer_{}_cifar10_{}_test_ind.npy'.format(i,opt.feature_extraction_type)))
         ind_features.append(data)
-        data=np.load(os.path.join('extracted_features',feature_name,'Features_from_layer_{}_{}_original_test_ood.npy'.format(i,ood)))
+        data=np.load(os.path.join('extracted_features',feature_name,'Features_from_layer_{}_{}_{}_test_ood.npy'.format(i,ood,opt.feature_extraction_type)))
         ood_features.append(data)
 
         PCA_x = PCA(n_components=3).fit_transform(np.concatenate((ood_features[i],ind_features[i],ind_train_features[i])))
@@ -101,4 +101,4 @@ for ood in ['svhn','imagenet_resize','lsun_resize','imagenet_fix','lsun_fix','pl
         )
         fig = go.Figure(data=[data,data2,data3], layout=layout)
 
-        plot(fig, filename=os.path.join('extracted_features',feature_name,'{}_layer{}'.format(ood,i)+'.html'), auto_open=False)
+        plot(fig, filename=os.path.join('extracted_features',feature_name,'{}_layer{}_{}'.format(ood,i,opt.feature_extraction_type)+'.html'), auto_open=False)

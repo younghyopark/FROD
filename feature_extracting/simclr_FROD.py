@@ -38,10 +38,16 @@ parser.add_argument('--out_dataset2', default='imagenet_resize', help='out_targe
 parser.add_argument('--out_dataset3', default='lsun_resize', help='out_target')
 parser.add_argument('--out_dataset4', default='imagenet_fix', help='out_target')
 parser.add_argument('--out_dataset5', default='lsun_fix', help='out_target')
-parser.add_argument('--out_dataset6', default='place365', help='out_target')
-parser.add_argument('--out_dataset7', default='dtd', help='out_target')
-parser.add_argument('--out_dataset8', default='gaussian_noise', help='out_target')
-parser.add_argument('--out_dataset9', default='uniform_noise', help='out_target')
+
+parser.add_argument('--out_dataset6', default=None, help='out_target')
+parser.add_argument('--out_dataset7', default=None, help='out_target')
+parser.add_argument('--out_dataset8', default=None, help='out_target')
+parser.add_argument('--out_dataset9', default=None, help='out_target')
+
+# parser.add_argument('--out_dataset6', default='place365', help='out_target')
+# parser.add_argument('--out_dataset7', default='dtd', help='out_target')
+# parser.add_argument('--out_dataset8', default='gaussian_noise', help='out_target')
+# parser.add_argument('--out_dataset9', default='uniform_noise', help='out_target')
 args = parser.parse_args()
 
 print(args)
@@ -160,16 +166,16 @@ def main():
             self.enc_midlayers=nn.Sequential(nn.Sequential(self.enc.conv1,self.enc.bn1,self.enc.relu,self.enc.maxpool),self.enc.layer1[0],self.enc.layer1[1],self.enc.layer2[0],self.enc.layer2[1],self.enc.layer3[0],self.enc.layer3[1],self.enc.layer4[0],self.enc.layer4[1])
 
             self.midlayers_num=len(self.enc_midlayers)
-            self.AE = nn.Sequential(AE(64, 32, 16, 8,4,0,0),
-                                   AE(64, 32, 16, 8,4,0,0),
-                                   AE(64, 32, 16, 8,4,0,0),
-                                   AE(128, 64, 32, 16,8,4,0),
-                                    AE(128, 64, 32, 16,8,4,0),
-                                    AE(256, 128, 64, 32, 16, 8,4),
-                                    AE(256, 128, 64, 32, 16, 8,4),
-                                    AE(512,256,128,64,32,8,4),
-                                    AE(512,256,128,64,32,8,4),
-
+            self.AE = nn.Sequential(
+                                AE(64, 32, 16, 8,0,0,0),
+                               AE(64, 32, 16, 8,0,0,0),
+                               AE(64, 32, 16, 8,0,0,0),
+                               AE(128, 64, 32, 8,0,0,0),
+                                AE(128, 64, 32, 8,0,0,0),
+                                AE(256, 64, 32, 8,0,0,0),
+                                AE(256, 64, 32, 8,0,0,0),
+                                AE(512,128,32,8,0,0,0),
+                                AE(512,128,32,8,0,0,0),
                                    )
         def forward(self, x):
             feature = self.enc(x)

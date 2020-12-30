@@ -26,17 +26,17 @@ import shutil
 from plotly.offline import plot
 import plotly.graph_objs as go
 import matplotlib.pyplot as plt
-#python ./autoencoder_training/vanillaAE_resnet18.py --backbone_name resnet18_vanilla_simclr_svhn --gpu 6 --dataset svhn --out_dataset cifar10 --out_dataset9 cifar100
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--n_epochs", type=int, default=500, help="number of epochs of training")
 parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument('--backbone_name','-bn', required=True, help='')
-parser.add_argument('--gpu', type=int, required=True, help='gpu index')
-parser.add_argument('--ckpt_epoch',type=int,default=50)
+parser.add_argument('--gpu', type=int, default=0, help='gpu index')
+parser.add_argument('--ckpt_epoch',type=int,default=100)
 parser.add_argument('--test_epoch',type=int,default=20)
-parser.add_argument("--out_target", type=int, default=100)
-parser.add_argument("--dataset", default = 'cifar10')
+parser.add_argument("--out_target", type=int, default=100, help="dimensionality of the latent space")
+parser.add_argument("--dataset",default='cifar10')
 parser.add_argument("--out_dataset",default='svhn')
 parser.add_argument("--out_dataset2",default='imagenet_resize')
 parser.add_argument("--out_dataset3",default='lsun_resize')
@@ -47,9 +47,9 @@ parser.add_argument("--out_dataset7",default='place365')
 parser.add_argument("--out_dataset8",default='gaussian_noise')
 parser.add_argument("--out_dataset9",default='uniform_noise')
 parser.add_argument('--outf',default='extracted_features')
-parser.add_argument('--resume',type=int, default=0)
-
 parser.add_argument('--moco_version','-v',type=int, default=0)
+parser.add_argument('--feature_extraction_type','-fet',type=str, default='original')
+
 
 
 opt = parser.parse_args()
@@ -60,7 +60,8 @@ cuda = True if torch.cuda.is_available() else False
 device = torch.device('cuda')
 torch.cuda.set_device(opt.gpu)
 
-writer = SummaryWriter(logdir=os.path.join('trained_autoencoders','vanilla_AE',opt.backbone_name))
+
+writer = SummaryWriter(logdir=os.path.join('trained_autoencoders/DAE',opt.backbone_name))
 
 out_dataset = []
 num_out_datasets=0
@@ -75,7 +76,7 @@ if opt.dataset in ['cifar100','cifar10','svhn']:
 else:
     num_out_datasets = 1
     out_dataset = ['MNIST']
-layer_num=9
+layer_num=17
 if opt.moco_version==1:
     layer_num=10
 elif opt.moco_version==2:
@@ -85,20 +86,26 @@ train_ind_feature=dict()
 test_ind_feature=dict()
 test_ood_feature=dict()
 num_ood=dict()
+
 for i in range(layer_num):
     test_ood_feature[i]=[]
     num_ood[i]=[]
-    train_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+'original'+'_train_ind.npy'))
-    test_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+'original'+'_test_ind.npy'))
+    test_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+opt.feature_extraction_type+'_test_ind.npy'))
+    train_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+opt.feature_extraction_type+'_train_ind.npy'))
+
     print(num_out_datasets)
     for j in range(num_out_datasets):
-        test_ood_feature[i].append(np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+out_dataset[j]+'_'+'original'+'_test_ood.npy')))
+        test_ood_feature[i].append(np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+out_dataset[j]+'_'+opt.feature_extraction_type+'_test_ood.npy')))
         num_ood[i].append(test_ood_feature[i][j].shape[0])
+
+                
+        
 train_data_ind = train_ind_feature
 test_data_ind = test_ind_feature
 test_data_ood = test_ood_feature
 for i in range(layer_num):
     print(train_data_ind[i].shape)
+
 
 class AE(nn.Module):
     def __init__(self, x_dim, h_dim1, h_dim2, h_dim3,h_dim4,h_dim5,h_dim6):
@@ -122,17 +129,17 @@ class AE(nn.Module):
 class Encoder(nn.Module):
     def __init__(self, x_dim, h_dim1, h_dim2,h_dim3,h_dim4,h_dim5,h_dim6):
         super(Encoder, self).__init__()
-        self.h_dim6=h_dim6
-        self.h_dim5=h_dim5
-        self.h_dim4=h_dim4
         self.fc1 = nn.Linear(x_dim, h_dim1)
         self.fc2 = nn.Linear(h_dim1, h_dim2)
         self.fc3 = nn.Linear(h_dim2, h_dim3)
-        if h_dim4>0:
+        self.h_dim4 = h_dim4
+        self.h_dim5 = h_dim5
+        self.h_dim6 = h_dim6
+        if self.h_dim4>0:
             self.fc4 = nn.Linear(h_dim3,h_dim4)
-        if h_dim5 >0:
+        if self.h_dim5 >0:
             self.fc5 = nn.Linear(h_dim4,h_dim5)
-        if h_dim6 >0:
+        if self.h_dim6 >0:
             self.fc6 = nn.Linear(h_dim5,h_dim6)
     
     def forward(self, x):
@@ -158,9 +165,10 @@ class Encoder(nn.Module):
 class Generator(nn.Module):
     def __init__(self, x_dim, h_dim1, h_dim2,h_dim3,h_dim4,h_dim5, h_dim6):
         super(Generator, self).__init__()
-        self.h_dim6=h_dim6
-        self.h_dim5=h_dim5
-        self.h_dim4=h_dim4
+        self.h_dim4 = h_dim4
+        self.h_dim5 = h_dim5
+        self.h_dim6 = h_dim6
+
         if h_dim6 >0:
             self.fc6 = nn.Linear(h_dim6,h_dim5)
         if h_dim5 >0:
@@ -194,14 +202,24 @@ models=dict()
 models[0] = AE(64, 32, 16, 8,4,0,0)
 models[1] = AE(64, 32, 16, 8,4,0,0)
 models[2] = AE(64, 32, 16, 8,4,0,0)
+models[3] = AE(64, 32, 16, 8,4,0,0)
 
-models[3] = AE(128, 64, 32, 16,8,4,0)
 models[4] = AE(128, 64, 32, 16,8,4,0)
+models[5] = AE(128, 64, 32, 16,8,4,0)
+models[6] = AE(128, 64, 32, 16,8,4,0)
+models[7] = AE(128, 64, 32, 16,8,4,0)
 
-models[5] = AE(256, 128, 64, 32, 16, 8,4)
-models[6] = AE(256, 128, 64, 32, 16, 8,4)
-models[7] = AE(512,256,128,64,32,8,4)
-models[8] = AE(512,256,128,64,32,8,4)
+models[8] = AE(256, 128, 64, 32, 16, 8,4)
+models[9] = AE(256, 128, 64, 32, 16, 8,4)
+models[10] = AE(256, 128, 64, 32, 16, 8,4)
+models[11] = AE(256, 128, 64, 32, 16, 8,4)
+models[12] = AE(256, 128, 64, 32, 16, 8,4)
+models[13] = AE(256, 128, 64, 32, 16, 8,4)
+
+models[14] = AE(512,256,128,64,32,8,4)
+models[15] = AE(512,256,128,64,32,8,4)
+models[16] = AE(512,256,128,64,32,8,4)
+
 if opt.moco_version==1:
     models[9]=AE(128, 64, 32, 16,8,4,0)
 elif opt.moco_version==2:
@@ -217,7 +235,7 @@ for i in range(layer_num):
     optimizer[i] = torch.optim.Adam(models[i].parameters(), opt.lr)
     schedular[i] = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer[i], T_max=opt.n_epochs, eta_min=0, last_epoch=-1)
    
-    
+
 train_ind_loader=dict()
 test_ind_loader=dict()
 test_ood_loader=dict()
@@ -230,43 +248,37 @@ for i in range(layer_num):
     models[i].to(device)
     models[i].train()
 
-if opt.resume==0:
-    for j in range(layer_num):
-        for epoch in range(1, opt.n_epochs+ 1):
-            avg_loss = 0
-            step = 0
-            for i, data in enumerate(train_ind_loader[j]):
-                step += 1
-                data = data.cuda()
-        #         print(data)
-                optimizer[j].zero_grad()
-                recon_error = models[j].recon_error(data)
-                loss = torch.mean(recon_error)
-                loss.backward()
-                optimizer[j].step()
-                avg_loss += loss
-                if i % 100 == 0:    
-                    print('Model for layer {} => Epoch [{}/{}] Batch [{}/{}]=> Loss: {:.5f}'.format(j,epoch, opt.n_epochs, i,len(train_ind_loader[j]), avg_loss / step))
+for j in range(layer_num):
+    for epoch in range(1, opt.n_epochs+ 1):
+        avg_loss = 0
+        step = 0
+        for i, data in enumerate(train_ind_loader[j]):
+            step += 1
+            noisy_data = data + torch.randn(data.size()) / 10
+            noisy_data = noisy_data.cuda()
+            data = data.cuda()
+    #         print(data)
+            optimizer[j].zero_grad()
+            recon_data = models[j](noisy_data)
+            recon_error = torch.norm((recon_data - data), dim=1)
+            loss = torch.mean(recon_error)
+            loss.backward()
+            optimizer[j].step()
+            avg_loss += loss
+            if i % 100 == 0:    
+                print('Model for layer {} => Epoch [{}/{}] Batch [{}/{}]=> Loss: {:.5f}'.format(j,epoch, opt.n_epochs, i,len(train_ind_loader[j]), avg_loss / step))
 
-            if epoch % opt.ckpt_epoch == 0:
-                model_state = models[j].state_dict()
-                #print(model_state)
-                ckpt_name = 'layer_{}_epoch_{}'.format(j,epoch)
-                ckpt_path = os.path.join('trained_autoencoders','vanilla_AE',opt.backbone_name,ckpt_name + ".pth")
-                torch.save(model_state, ckpt_path)
-
-if opt.resume==1:
-    epoch = 500
-    for j in range(layer_num):
-        ckpt_name = 'layer_{}'.format(j)
-        tm = torch.load(os.path.join('trained_autoencoders','vanilla_AE',opt.backbone_name,ckpt_name + ".pth"))
-        print('model {} loaded'.format(j))
+        if epoch % opt.ckpt_epoch == 0:
+            model_state = models[j].state_dict()
+            #print(model_state)
+            ckpt_name = 'layer_{}_{}_epoch_{}_model1'.format(j,epoch,opt.feature_extraction_type)
+            ckpt_path = os.path.join('trained_autoencoders/DAE',opt.backbone_name,ckpt_name + ".pth")
+            torch.save(model_state, ckpt_path)
 
 print('=== reconstruction error calculation on test data ===')
 for j in range(layer_num):
-    print('layer {}'.format(j))
     rc_error_ind = []
-    for i, data in enumerate(tqdm(train_ind_loader[j])):
+    for i, data in enumerate(train_ind_loader[j]):
         data = data.cuda()
 #             print(i)
         recon_error = models[j].recon_error(data)
@@ -274,13 +286,13 @@ for j in range(layer_num):
     rc_error_ind_total = torch.cat(rc_error_ind,0)   
     rc_error_ind_total_np = rc_error_ind_total.detach().cpu().numpy()  
     ind_score = -rc_error_ind_total_np
-    l0 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}_train.txt'.format(j,opt.dataset,epoch), 'w')
+    l0 = open('./trained_autoencoders/DAE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}_{}_train.txt'.format(j,opt.dataset,epoch,opt.feature_extraction_type), 'w')
     for i in range(ind_score.shape[0]):
         l0.write("{}\n".format(ind_score[i]))
     l0.close()
 
     rc_error_ind = []
-    for i, data in enumerate(tqdm(test_ind_loader[j])):
+    for i, data in enumerate(test_ind_loader[j]):
         data = data.cuda()
 #             print(i)
         recon_error = models[j].recon_error(data)
@@ -288,14 +300,14 @@ for j in range(layer_num):
     rc_error_ind_total = torch.cat(rc_error_ind,0)   
     rc_error_ind_total_np = rc_error_ind_total.detach().cpu().numpy()  
     ind_score = -rc_error_ind_total_np
-    l1 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}.txt'.format(j,opt.dataset,epoch), 'w')
+    l1 = open('./trained_autoencoders/DAE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}_{}.txt'.format(j,opt.dataset,epoch,opt.feature_extraction_type), 'w')
     for i in range(ind_score.shape[0]):
         l1.write("{}\n".format(ind_score[i]))
     l1.close()
 
     for out_n in range(num_out_datasets):
         rc_error_ood = []
-        for i, data in enumerate(tqdm(test_ood_loader[j][out_n])):
+        for i, data in enumerate(test_ood_loader[j][out_n]):
             data = data.cuda()
 #             print(i)
             recon_error = models[j].recon_error(data)
@@ -304,7 +316,10 @@ for j in range(layer_num):
         rc_error_ood_total_np = rc_error_ood_total.detach().cpu().numpy()        
 
         ood_score = -rc_error_ood_total_np
-        l2 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_out_{}_epoch_{}_model1.txt'.format(j,out_dataset[out_n],epoch), 'w')
+        l2 = open('./trained_autoencoders/DAE/'+opt.backbone_name+'/confidence_layer_{}_out_{}_epoch_{}_{}_model1.txt'.format(j,out_dataset[out_n],epoch,opt.feature_extraction_type), 'w')
         for i in range(ood_score.shape[0]):
             l2.write("{}\n".format(ood_score[i]))
         l2.close()
+
+
+
