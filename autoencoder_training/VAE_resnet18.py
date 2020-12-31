@@ -41,10 +41,10 @@ parser.add_argument("--out_dataset2",default='imagenet_resize')
 parser.add_argument("--out_dataset3",default='lsun_resize')
 parser.add_argument("--out_dataset4",default='imagenet_fix')
 parser.add_argument("--out_dataset5",default='lsun_fix')
-parser.add_argument("--out_dataset6",default='dtd')
-parser.add_argument("--out_dataset7",default='place365')
-parser.add_argument("--out_dataset8",default='gaussian_noise')
-parser.add_argument("--out_dataset9",default='uniform_noise')
+parser.add_argument("--out_dataset6",default='None')
+parser.add_argument("--out_dataset7",default='None')
+parser.add_argument("--out_dataset8",default='None')
+parser.add_argument("--out_dataset9",default='None')
 parser.add_argument('--outf',default='extracted_features')
 parser.add_argument('--moco_version','-v',type=int, default=0)
 parser.add_argument('--feature_extraction_type','-fet',type=str, default='mean')
@@ -80,7 +80,7 @@ if opt.moco_version==1:
     layer_num=10
 elif opt.moco_version==2:
     layer_num=14
-
+layer_num=12
 
 train_ind_feature=dict()
 test_ind_feature=dict()
@@ -167,6 +167,11 @@ models[5] = VAE(256, 128, 64, 16)
 models[6] = VAE(256, 128, 64, 16)
 models[7] = VAE(512, 256, 128, 16)
 models[8] = VAE(512, 256, 128, 16)
+models[9] = VAE(512, 256, 128, 16)
+models[10] = VAE(2048,512,128,16)
+models[11] = VAE(128, 64, 32, 8)
+
+
 if opt.moco_version==1:
     models[9]=VAE(128, 64, 32, 8)
 elif opt.moco_version==2:

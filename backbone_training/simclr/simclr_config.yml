@@ -15,8 +15,8 @@ data_dir: ./data
 
 # model
 backbone: resnet18 # or resnet34, resnet50
-projection_dim: 128 # "[...] to project the representation to a 128-dimensional latent space"
-bn: simclr_FROD_permrot_explicit
+projection_dim: 2 # "[...] to project the representation to a 128-dimensional latent space"
+bn: sigmoid_proj_dim_2_simclr_temperature_0.5_bs_1024
 FROD_epoch: 3
 AE_coef: 0.01
 warmup_epoch: 10
@@ -24,7 +24,7 @@ warmup_epoch: 10
 # train options
 
 seed: 42 # sacred handles automatic seeding when passed in the config
-batch_size: 128
+batch_size: 1024
 workers: 16
 epochs: 1000
 log_interval: 10
@@ -35,7 +35,7 @@ optimizer: 'sgd' # or LARS (experimental)
 learning_rate: 0.6 # initial lr = 0.3 * batch_size / 256
 momentum: 0.9
 weight_decay: 1.0e-6 # "optimized using LARS [...] and weight decay of 10−6"
-temperature: 0.1 # see appendix B.7.: Optimal temperature under different batch sizes
+temperature: 0.5 # see appendix B.7.: Optimal temperature under different batch sizes
 
 
 # finetune options

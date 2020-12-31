@@ -107,7 +107,7 @@ hydra:
     hydra: []
     task: []
   job:
-    name: simclr_for_FROD_permrot
+    name: simclr_sigmoid
     override_dirname: ''
     id: ???
     num: ???

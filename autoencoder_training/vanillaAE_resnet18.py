@@ -42,12 +42,14 @@ parser.add_argument("--out_dataset2",default='imagenet_resize')
 parser.add_argument("--out_dataset3",default='lsun_resize')
 parser.add_argument("--out_dataset4",default='imagenet_fix')
 parser.add_argument("--out_dataset5",default='lsun_fix')
-parser.add_argument("--out_dataset6",default='dtd')
-parser.add_argument("--out_dataset7",default='place365')
-parser.add_argument("--out_dataset8",default='gaussian_noise')
-parser.add_argument("--out_dataset9",default='uniform_noise')
+parser.add_argument("--out_dataset6",default='None')
+parser.add_argument("--out_dataset7",default='None')
+parser.add_argument("--out_dataset8",default='None')
+parser.add_argument("--out_dataset9",default='None')
 parser.add_argument('--outf',default='extracted_features')
 parser.add_argument('--resume',type=int, default=0)
+parser.add_argument('--feature_extraction_type',type=str, default='mean')
+
 
 parser.add_argument('--moco_version','-v',type=int, default=0)
 
@@ -80,7 +82,8 @@ if opt.moco_version==1:
     layer_num=10
 elif opt.moco_version==2:
     layer_num=14
-
+layer_num = 12
+print('layer num', layer_num)
 train_ind_feature=dict()
 test_ind_feature=dict()
 test_ood_feature=dict()
@@ -88,11 +91,11 @@ num_ood=dict()
 for i in range(layer_num):
     test_ood_feature[i]=[]
     num_ood[i]=[]
-    train_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+'original'+'_train_ind.npy'))
-    test_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+'original'+'_test_ind.npy'))
+    train_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+opt.feature_extraction_type+'_train_ind.npy'))
+    test_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+opt.feature_extraction_type+'_test_ind.npy'))
     print(num_out_datasets)
     for j in range(num_out_datasets):
-        test_ood_feature[i].append(np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+out_dataset[j]+'_'+'original'+'_test_ood.npy')))
+        test_ood_feature[i].append(np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+out_dataset[j]+'_'+opt.feature_extraction_type+'_test_ood.npy')))
         num_ood[i].append(test_ood_feature[i][j].shape[0])
 train_data_ind = train_ind_feature
 test_data_ind = test_ind_feature
@@ -202,6 +205,11 @@ models[5] = AE(256, 128, 64, 32, 16, 8,4)
 models[6] = AE(256, 128, 64, 32, 16, 8,4)
 models[7] = AE(512,256,128,64,32,8,4)
 models[8] = AE(512,256,128,64,32,8,4)
+models[9] = AE(512,256,128,64,32,8,4)
+models[10] = AE(2048,512,128,64,32,8,4)
+models[11] = AE(128,64,32,16,8,4,0)
+
+
 if opt.moco_version==1:
     models[9]=AE(128, 64, 32, 16,8,4,0)
 elif opt.moco_version==2:
@@ -274,7 +282,7 @@ for j in range(layer_num):
     rc_error_ind_total = torch.cat(rc_error_ind,0)   
     rc_error_ind_total_np = rc_error_ind_total.detach().cpu().numpy()  
     ind_score = -rc_error_ind_total_np
-    l0 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}_train.txt'.format(j,opt.dataset,epoch), 'w')
+    l0 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}_{}_train.txt'.format(j,opt.dataset,epoch, opt.feature_extraction_type), 'w')
     for i in range(ind_score.shape[0]):
         l0.write("{}\n".format(ind_score[i]))
     l0.close()
@@ -288,7 +296,7 @@ for j in range(layer_num):
     rc_error_ind_total = torch.cat(rc_error_ind,0)   
     rc_error_ind_total_np = rc_error_ind_total.detach().cpu().numpy()  
     ind_score = -rc_error_ind_total_np
-    l1 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}.txt'.format(j,opt.dataset,epoch), 'w')
+    l1 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_in_{}_epoch_{}_{}.txt'.format(j,opt.dataset,epoch, opt.feature_extraction_type), 'w')
     for i in range(ind_score.shape[0]):
         l1.write("{}\n".format(ind_score[i]))
     l1.close()
@@ -304,7 +312,7 @@ for j in range(layer_num):
         rc_error_ood_total_np = rc_error_ood_total.detach().cpu().numpy()        
 
         ood_score = -rc_error_ood_total_np
-        l2 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_out_{}_epoch_{}_model1.txt'.format(j,out_dataset[out_n],epoch), 'w')
+        l2 = open('./trained_autoencoders/vanilla_AE/'+opt.backbone_name+'/confidence_layer_{}_out_{}_epoch_{}_{}_model1.txt'.format(j,out_dataset[out_n],epoch, opt.feature_extraction_type), 'w')
         for i in range(ood_score.shape[0]):
             l2.write("{}\n".format(ood_score[i]))
         l2.close()

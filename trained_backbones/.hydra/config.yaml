@@ -1,13 +1,13 @@
 dataset: cifar10
 data_dir: ./data
 backbone: resnet18
-projection_dim: 128
-bn: simclr_FROD_permrot_explicit
+projection_dim: 2
+bn: sigmoid_proj_dim_2_simclr_temperature_0.5_bs_1024
 FROD_epoch: 3
 AE_coef: 0.01
 warmup_epoch: 10
 seed: 42
-batch_size: 128
+batch_size: 1024
 workers: 16
 epochs: 1000
 log_interval: 10
@@ -15,6 +15,6 @@ optimizer: sgd
 learning_rate: 0.6
 momentum: 0.9
 weight_decay: 1.0e-06
-temperature: 0.1
+temperature: 0.5
 finetune_epochs: 100
 load_epoch: 1000
