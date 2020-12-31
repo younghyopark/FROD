@@ -3,6 +3,9 @@ Created on Sun Oct 21 2018
 @author: Kimin Lee
 """
 from __future__ import print_function
+import time
+
+
 import argparse
 import torch
 import numpy as np
@@ -28,41 +31,62 @@ from torch.nn.parameter import Parameter
 
 
 parser = argparse.ArgumentParser(description='PyTorch code: Mahalanobis detector')
-parser.add_argument('--batch_size', type=int, default=200, metavar='N', help='batch size for data loader')
+parser.add_argument('--batch_size', type=int, default=128, metavar='N', help='batch size for data loader')
 parser.add_argument('--dataset', default='cifar10', help='cifar10 | cifar100 | svhn')
 parser.add_argument('--outf', default='./extracted_features/', help='folder to output results')
 parser.add_argument('--backbone_name', required=True, help='')
 parser.add_argument('--gpu', required=True, type=int, default=0, help='gpu index')
-parser.add_argument('--out_target', default=None, help='out_target')
-parser.add_argument('--out_dataset1', default='svhn', help='out_target')
-parser.add_argument('--out_dataset2', default='imagenet_resize', help='out_target')
-parser.add_argument('--out_dataset3', default='lsun_resize', help='out_target')
-parser.add_argument('--out_dataset4', default='imagenet_fix', help='out_target')
-parser.add_argument('--out_dataset5', default='lsun_fix', help='out_target')
-parser.add_argument('--out_dataset6', default=None, help='out_target')
-parser.add_argument('--out_dataset7', default=None, help='out_target')
-parser.add_argument('--out_dataset8', default=None, help='out_target')
-parser.add_argument('--out_dataset9', default=None, help='out_target')
-# parser.add_argument('--out_dataset6', default='place365', help='out_target')
-# parser.add_argument('--out_dataset7', default='dtd', help='out_target')
-# parser.add_argument('--out_dataset8', default='gaussian_noise', help='out_target')
-# parser.add_argument('--out_dataset9', default='uniform_noise', help='out_target')
-parser.add_argument('--feature_extraction_type','-fet', help='mean | max | min | gram_max | gram_sum', default='mean')
+parser.add_argument('--epochs',type=int,default = 100)
 
 args = parser.parse_args()
 
 print(args)
+def validate(encoder, classifier, val_loader, layer_index):
+    correct = 0
+    with torch.no_grad():
+        for images, labels in val_loader:
+            pred = classifier(encoder.intermediate_forward(images.cuda(), layer_index).flatten(1)).argmax(dim=1)
+            correct += (pred.cpu() == labels).sum().item()
+    return correct / len(val_loader.dataset)
 
-if args.feature_extraction_type=='mean':
-    from lib_extraction import get_features
-elif args.feature_extraction_type=='max':
-    from lib_extraction import get_features_max as get_features
-elif args.feature_extraction_type=='min':
-    from lib_extraction import get_features_min as get_features
-elif args.feature_extraction_type=='gram_max':
-    from lib_extraction import get_features_gram_max as get_features
-elif args.feature_extraction_type=='gram_mean':
-    from lib_extraction import get_features_gram_mean as get_features
+
+class AverageMeter(object):
+    r"""
+    Computes and stores the average and current value.
+    Adapted from
+    https://github.com/pytorch/examples/blob/ec10eee2d55379f0b9c87f4b36fcf8d0723f45fc/imagenet/main.py#L359-L380
+    """
+    def __init__(self, name=None, fmt='.6f'):
+        fmtstr = f'{{val:{fmt}}} ({{avg:{fmt}}})'
+        if name is not None:
+            fmtstr = name + ' ' + fmtstr
+        self.fmtstr = fmtstr
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+
+    @property
+    def avg(self):
+        avg = self.sum / self.count
+        if isinstance(avg, torch.Tensor):
+            avg = avg.item()
+        return avg
+
+    def __str__(self):
+        val = self.val
+        if isinstance(val, torch.Tensor):
+            val = val.item()
+        return self.fmtstr.format(val=val, avg=self.avg)
+
+
 
 def main():
     class SimCLR(nn.Module):
@@ -166,56 +190,42 @@ def main():
 
     # set information about feature extaction
     model.eval()
-    temp_x = torch.rand(2,3,32,32).cuda()
-    temp_x = Variable(temp_x)
-    
-    temp_list = model.feature_list(temp_x)[1]
-    num_output = len(temp_list)
-
-    print(num_output)
-    feature_list = np.empty(num_output)
-    count = 0
-    for out in temp_list:
-        feature_list[count] = out.size(1)
-        count += 1
-        
-    print('get {} features for in-distribution samples'.format(args.feature_extraction_type))
-    for i in tqdm(range(num_output)):
-        features = get_features(model, test_loader, i)
-        
-        file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_%s_test_ind.npy' % (str(i), args.dataset,args.feature_extraction_type))
-        features = np.asarray(features, dtype=np.float32)
-        print('layer= ',i)
-        print(features.shape)
-        np.save(file_name, features) 
-    
-    print('get {} features for out-of-distribution samples'.format(args.feature_extraction_type))
-    out_datasets_temp = [args.out_dataset1,args.out_dataset2,args.out_dataset3,args.out_dataset4,args.out_dataset5,args.out_dataset6,args.out_dataset7,args.out_dataset8,args.out_dataset9]
-    out_datasets=[]
-    for out in out_datasets_temp:
-        if out is not None:
-            out_datasets.append(out)
+    num_layer = 12
+    for layer in range(num_layer):
+        print('=========layer {}=========='.format(layer))
+        with torch.no_grad():
+            sample, _ = train_loader.dataset[0]
+            eval_numel = model.intermediate_forward(sample.unsqueeze(0).cuda(),layer).numel()        
             
-    for out in out_datasets:
-        print('out')
-        print('')
+        classifier = nn.Linear(eval_numel, 10).cuda()
+        
+        optim = torch.optim.Adam(classifier.parameters(), lr=1e-3, betas=(0.5, 0.999))
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optim, gamma=0.2,milestones='60,80') #github align_uniform
+        loss_meter = AverageMeter('loss')
+        it_time_meter = AverageMeter('iter_time')
+    
+        for epoch in range(args.epochs):
+            loss_meter.reset()
+            it_time_meter.reset()
+            t0 = time.time()
+            for ii, (images, labels) in enumerate(train_loader):
+                optim.zero_grad()
+                with torch.no_grad():
+                    feats = model.intermediate_forward(images.cuda(), layer).flatten(1)
+                logits = classifier(feats)
+                loss = F.cross_entropy(logits, labels.to(args.gpu))
+                loss_meter.update(loss, images.shape[0])
+                loss.backward()
+                optim.step()
+                it_time_meter.update(time.time() - t0)
+#                 if ii % 150 == 0:
+#                     print(f"Epoch {epoch}/{args.epochs}\tIt {ii}/{len(train_loader)}\t{loss_meter}\t{it_time_meter}")
+                t0 = time.time()
+            scheduler.step()
+            if epoch%10==0:
+                val_acc = validate(model, classifier, test_loader, layer)
+                print(f"Epoch {epoch}/{args.epochs}\tval_acc {val_acc*100:.4g}%")
 
-        out_test_loader = getDataLoader(out,args.batch_size,'valid')
-
-        for i in tqdm(range(num_output)):
-            features = get_features(model, out_test_loader, i)
-
-            file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_%s_test_ood.npy' % (str(i), out,args.feature_extraction_type))
-            features = np.asarray(features, dtype=np.float32)
-            np.save(file_name, features) 
-
-    print('get {} features for in-distribution training samples'.format(args.feature_extraction_type))
-    for i in tqdm(range(num_output)):
-        features = get_features(model, train_loader, i)
-
-        file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_%s_train_ind.npy' % (str(i), args.dataset,args.feature_extraction_type))
-        features = np.asarray(features, dtype=np.float32)
-        np.save(file_name, features) 
 
     
 if __name__ == '__main__':

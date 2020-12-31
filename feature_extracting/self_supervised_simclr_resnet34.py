@@ -27,7 +27,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 
-
+#python ./feature_extracting/self_supervised_simclr_resnet34.py --dataset cifar100 --backbone_name resnet34_vanilla_simclr_cifar100 --gpu 6 --out_dataset9 cifar10
 parser = argparse.ArgumentParser(description='PyTorch code: Mahalanobis detector')
 parser.add_argument('--batch_size', type=int, default=200, metavar='N', help='batch size for data loader')
 parser.add_argument('--dataset', default='cifar10', help='cifar10 | cifar100 | svhn')
