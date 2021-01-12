@@ -18,7 +18,7 @@ from models import SimCLR
 from tqdm import tqdm
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  
 
 
 class AverageMeter(object):
@@ -147,7 +147,7 @@ def train(args: DictConfig) -> None:
         # save checkpoint very log_interval epochs
         if epoch >= args.log_interval and epoch % args.log_interval == 0:
             logger.info("==> Save checkpoint. Train epoch {}, SimCLR loss: {:.4f}".format(epoch, loss_meter.avg))
-            torch.save(model.state_dict(), '{}.pt'.format(args.bn))
+            torch.save(model.state_dict(), '{}.pth'.format(args.bn))
 
 
 if __name__ == '__main__':

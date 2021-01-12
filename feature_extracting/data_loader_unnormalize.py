@@ -129,24 +129,14 @@ class TensorDataset(torch.utils.data.Dataset):
         return "==== {} Dataset ==== Num DATA: {}".format(self.tensor_name, self.data.size(0))
 
 
-def getDataLoader(dataset, batch_size, split, droot='./data',type='loader'):
+def getDataLoader(dataset, batch_size, split, droot='./data',type='loader', transform=None):
     if dataset in ['cifar10']:
-        mean = np.array([[0.4914, 0.4822, 0.4465]]).T
-        std = np.array([[0.2023, 0.1994, 0.2010]]).T
-        normalize = trn.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
-            
-        transform_train = trn.Compose([
-#                 trn.RandomCrop(32, padding=4),
-#                 trn.RandomHorizontalFlip(),
-                trn.ToTensor(),
-                # normalize  
-            ])
-
-        transform_test = trn.Compose([
-                trn.CenterCrop(size=(32, 32)),
-                trn.ToTensor(),
-                # normalize
-            ])
+        if transform is None:
+            transform_train = trn.Compose([trn.ToTensor()])
+            transform_test = trn.Compose([trn.ToTensor()])
+        else:
+            transform_train = transform
+            transform_test = transform
    
         if split=='train':
             loader = torch.utils.data.DataLoader(
@@ -157,19 +147,15 @@ def getDataLoader(dataset, batch_size, split, droot='./data',type='loader'):
             loader = torch.utils.data.DataLoader(
                 datasets.CIFAR10(droot, train=False, transform=transform_test),
                 batch_size=batch_size, shuffle=False)
-        print('cifar10 loaded')
+        print('cifar10, transform {} loaded'.format(transform_test))
 
     elif dataset in ['cifar100']:
-            
-        transform_train = trn.Compose([
-                trn.ToTensor(), 
-            ])
-
-        transform_test = trn.Compose([
-                trn.CenterCrop(size=(32, 32)),
-                trn.ToTensor(),
-                # normalize
-            ])
+        if transform is None:
+            transform_train = trn.Compose([trn.ToTensor()])
+            transform_test = trn.Compose([trn.ToTensor()])
+        else:
+            transform_train = transform
+            transform_test = transform
    
         if split=='train':
             loader = torch.utils.data.DataLoader(
@@ -180,26 +166,16 @@ def getDataLoader(dataset, batch_size, split, droot='./data',type='loader'):
             loader = torch.utils.data.DataLoader(
                 datasets.CIFAR100(droot, train=False, transform=transform_test),
                 batch_size=batch_size, shuffle=False)
-        print('cifar10 loaded')
+        print('cifar100, transform {} loaded'.format(transform_test))
 
         
     elif dataset in ['svhn']:
-        mean = np.array([[0.4914, 0.4822, 0.4465]]).T
-        std = np.array([[0.2023, 0.1994, 0.2010]]).T
-        normalize = trn.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
-
-        transform_train = trn.Compose([
-#                 trn.RandomCrop(32, padding=4),
-#                 trn.RandomHorizontalFlip(),
-                trn.ToTensor(),
-                # normalize
-                
-            ])
-        transform_test = trn.Compose([
-            trn.CenterCrop(size=(32, 32)),
-                trn.ToTensor(),
-                # normalize
-            ])
+        if transform is None:
+            transform_train = trn.Compose([trn.ToTensor()])
+            transform_test = trn.Compose([trn.ToTensor()])
+        else:
+            transform_train = transform
+            transform_test = transform
 
         if split=='train':
             loader = torch.utils.data.DataLoader(
@@ -210,33 +186,51 @@ def getDataLoader(dataset, batch_size, split, droot='./data',type='loader'):
             loader = torch.utils.data.DataLoader(
                 datasets.SVHN(droot, split="test", download=True, transform=transform_test),
                 batch_size=batch_size, shuffle=False)
-        print('svhn loaded')
+        print('svhn, transform {} loaded'.format(transform_test))
 
     elif dataset in ['imagenet_resize']:
         dataroot = os.path.join(droot,'Imagenet_resize')
-        testsetout = datasets.ImageFolder(dataroot, transform=trn.Compose([trn.ToTensor()]))
+        
+        if transform is None:
+            transform_test = trn.Compose([trn.ToTensor()])
+        else:
+            transform_test = transform
+        testsetout = datasets.ImageFolder(dataroot, transform=transform_test)
+        
         loader = torch.utils.data.DataLoader(testsetout, batch_size=batch_size, shuffle=False, num_workers=1)
-        print('imagenet resize loaded')
+        print('imagenet resize, transform {} loaded'.format(transform_test))
 
     elif dataset in ['lsun_resize']:
         dataroot = os.path.join(droot,'LSUN_resize')
-        testsetout = datasets.ImageFolder(dataroot, transform=trn.Compose([trn.ToTensor()]))
+        if transform is None:
+            transform_test = trn.Compose([trn.ToTensor()])
+        else:
+            transform_test = transform
+        testsetout = datasets.ImageFolder(dataroot, transform=transform_test)
         loader = torch.utils.data.DataLoader(testsetout, batch_size=batch_size, shuffle=False, num_workers=1)
-        print('lsun resize loaded')
+        print('lsun resize, transform {} loaded'.format(transform_test))
 
 
     elif dataset in ['imagenet_fix']:
         dataroot = os.path.join(droot,'Imagenet_FIX')
-        testsetout = datasets.ImageFolder(dataroot, transform=trn.Compose([trn.ToTensor()]))
+        if transform is None:
+            transform_test = trn.Compose([trn.ToTensor()])
+        else:
+            transform_test = transform
+        testsetout = datasets.ImageFolder(dataroot, transform=transform_test)
         loader = torch.utils.data.DataLoader(testsetout, batch_size=batch_size, shuffle=False, num_workers=1)
-        print('imagenet fix loaded')
+        print('imagenet fix, transform {} loaded'.format(transform_test))
 
 
     elif dataset in ['lsun_fix']:
         dataroot = os.path.join(droot,'LSUN_FIX')
-        testsetout = datasets.ImageFolder(dataroot, transform=trn.Compose([trn.ToTensor()]))
+        if transform is None:
+            transform_test = trn.Compose([trn.ToTensor()])
+        else:
+            transform_test = transform
+        testsetout = datasets.ImageFolder(dataroot, transform=transform_test)
         loader = torch.utils.data.DataLoader(testsetout, batch_size=batch_size, shuffle=False, num_workers=1)
-        print('lsun fix loaded')
+        print('lsun fix, transform {} loaded'.format(transform_test))
 
     elif dataset in ['place365']:
         dataroot = os.path.join(droot,'Place365test')

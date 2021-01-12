@@ -55,7 +55,7 @@ parser.add_argument('--outf',default='extracted_features')
 parser.add_argument('--moco_version','-v',type=int, default=0)
 parser.add_argument('--feature_extraction_type','-fet',type=str, default='mean')
 parser.add_argument('--layer_num','-l',type=int, default=12)
-
+parser.add_argument('--training_layer','-tl',type=int, required=True)
 
 
 
@@ -94,7 +94,7 @@ train_ind_feature=dict()
 test_ind_feature=dict()
 test_ood_feature=dict()
 num_ood=dict()
-for i in range(layer_num):
+for i in range(opt.training_layer,opt.training_layer+1):
     test_ood_feature[i]=[]
     num_ood[i]=[]
     train_ind_feature[i]=np.load(os.path.join(opt.outf,opt.backbone_name,'Features_from_layer_'+str(i)+'_'+opt.dataset+'_'+opt.feature_extraction_type+'_train_ind.npy'))
@@ -106,7 +106,7 @@ for i in range(layer_num):
 train_data_ind = train_ind_feature
 test_data_ind = test_ind_feature
 test_data_ood = test_ood_feature
-for i in range(layer_num):
+for i in range(opt.training_layer,opt.training_layer+1):
     print(train_data_ind[i].shape)
 
 
@@ -202,19 +202,20 @@ class Generator(nn.Module):
         return self.fc1(h)
 
 models=dict()
-models[0] = AE(64, 32, 16, 8,4,0,0)
-models[1] = AE(64, 32, 16, 8,4,0,0)
-models[2] = AE(64, 32, 16, 8,4,0,0)
+models[0] = AE(64, 32, 16, 8,0,0,0)
+models[1] = AE(64, 32, 16, 8,0,0,0)
+models[2] = AE(64, 32, 16, 8,0,0,0)
 
-models[3] = AE(128, 64, 32, 16,8,4,0)
-models[4] = AE(128, 64, 32, 16,8,4,0)
-models[5] = AE(256, 128, 64, 32, 16, 8,4)
-models[6] = AE(256, 128, 64, 32, 16, 8,4)
-models[7] = AE(512,256,128,64,32,8,4)
-models[8] = AE(512,256,128,64,32,8,4)
-models[9] = AE(512,256,128,64,32,8,4)
-models[10] = AE(2048,512,128,64,32,8,4)
-models[11] = AE(128,64,32,16,8,4,0)
+models[3] = AE(128, 64, 32, 16,16,0,0)
+models[4] = AE(128, 64, 32, 16,16,0,0)
+
+models[5] = AE(256, 128, 64, 32, 32, 0,0)
+models[6] = AE(256, 128, 64, 32, 32, 0,0)
+models[7] = AE(512,256,128,64,64,0,0)
+models[8] = AE(512,256,128,64,64,0,0)
+models[9] = AE(512,256,128,64,64,0,0)
+models[10] = AE(2048,512,128,64,64,0,0)
+models[11] = AE(128, 64, 32, 16,16,0,0)
 
 if opt.moco_version==1:
     models[9]=AE(128, 64, 32, 16,8,4,0)
@@ -227,7 +228,7 @@ elif opt.moco_version==2:
 
 optimizer=dict()
 schedular=dict()
-for i in range(layer_num):
+for i in range(opt.training_layer,opt.training_layer+1):
     optimizer[i] = torch.optim.Adam(models[i].parameters(), opt.lr)
     schedular[i] = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer[i], T_max=opt.n_epochs, eta_min=0, last_epoch=-1)
    
@@ -235,7 +236,7 @@ for i in range(layer_num):
 train_ind_loader=dict()
 test_ind_loader=dict()
 test_ood_loader=dict()
-for i in range(layer_num):
+for i in range(opt.training_layer,opt.training_layer+1):
     train_ind_loader[i] = torch.utils.data.DataLoader(torch.Tensor(train_data_ind[i]), batch_size=opt.batch_size, shuffle=True)
     test_ind_loader[i] = torch.utils.data.DataLoader(torch.Tensor(test_data_ind[i]), batch_size=opt.batch_size, shuffle=False)
     test_ood_loader[i]=[]
@@ -244,7 +245,7 @@ for i in range(layer_num):
     models[i].to(device)
     models[i].train()
 
-for j in range(layer_num):
+for j in range(opt.training_layer,opt.training_layer+1):
     for epoch in range(1, opt.n_epochs+ 1):
         avg_loss = 0
         step = 0
@@ -272,7 +273,7 @@ for j in range(layer_num):
             torch.save(model_state, ckpt_path)
 
 print('=== reconstruction error calculation on test data ===')
-for j in range(layer_num):
+for j in range(opt.training_layer,opt.training_layer+1):
     rc_error_ind = []
     for i, data in enumerate(train_ind_loader[j]):
         data = data.cuda()

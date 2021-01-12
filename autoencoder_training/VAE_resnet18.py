@@ -48,6 +48,8 @@ parser.add_argument("--out_dataset9",default='None')
 parser.add_argument('--outf',default='extracted_features')
 parser.add_argument('--moco_version','-v',type=int, default=0)
 parser.add_argument('--feature_extraction_type','-fet',type=str, default='mean')
+parser.add_argument('--layer_num','-l',type=int, default=12)
+
 
 
 
@@ -80,7 +82,7 @@ if opt.moco_version==1:
     layer_num=10
 elif opt.moco_version==2:
     layer_num=14
-layer_num=12
+layer_num=opt.layer_num
 
 train_ind_feature=dict()
 test_ind_feature=dict()
@@ -165,10 +167,10 @@ models[4] = VAE(128, 64, 32, 8)
 
 models[5] = VAE(256, 128, 64, 16)
 models[6] = VAE(256, 128, 64, 16)
-models[7] = VAE(512, 256, 128, 16)
-models[8] = VAE(512, 256, 128, 16)
-models[9] = VAE(512, 256, 128, 16)
-models[10] = VAE(2048,512,128,16)
+models[7] = VAE(512, 256, 128, 32)
+models[8] = VAE(512, 256, 128, 32)
+models[9] = VAE(512, 256, 128, 32)
+models[10] = VAE(2048,512,128,64)
 models[11] = VAE(128, 64, 32, 8)
 
 
