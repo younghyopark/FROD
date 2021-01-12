@@ -8,7 +8,7 @@ import argparse
 from sklearn.preprocessing import StandardScaler
 import copy
 from tqdm import trange
-#python FROD_final2-hj.py -bn resnet18_simclr_permrot_cifar10 --prefix Adam_confidence --epoch 500 --ae_type vanilla_AE
+#python FROD_final2-hj.py -bn resnet18_simclr_permrot_cifar10 --prefix aug_confidence --epoch 500 --ae_type vanilla_AE
 parser = argparse.ArgumentParser()
 parser.add_argument("--outf", default='extracted_features')
 parser.add_argument("--backbone_name",'-bn', required=True)
@@ -23,7 +23,7 @@ parser.add_argument("--epoch",type=int,required=True)
 opt = parser.parse_args()
     
 ood_dataset=[opt.out_dataset,'lsun_resize','imagenet_resize','lsun_fix','imagenet_fix'] 
-augs = ['','_cjitter', '_gray', '_hflip', '_rot90', '_']# '_vflip']
+augs = ['','_cjitter', '_gray', '_hflip', '_rot90', '_rot180', '_rot270']# '_vflip']
 #augs = ['']       
 print(augs)
 out_dataset=ood_dataset

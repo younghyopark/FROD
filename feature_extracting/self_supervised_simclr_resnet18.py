@@ -47,7 +47,7 @@ parser.add_argument('--out_dataset9', default=None, help='out_target')
 # parser.add_argument('--out_dataset7', default='dtd', help='out_target')
 # parser.add_argument('--out_dataset8', default='gaussian_noise', help='out_target')
 # parser.add_argument('--out_dataset9', default='uniform_noise', help='out_target')
-parser.add_argument('--feature_extraction_type','-fet', help='mean | max | min | gram_max | gram_sum', default='mean')
+parser.add_argument('--feature_extraction_type','-fet', help='mean | max | min | gram_max | gram_sum | no_pooling', default='mean')
 
 args = parser.parse_args()
 
@@ -63,6 +63,8 @@ elif args.feature_extraction_type=='gram_max':
     from lib_extraction import get_features_gram_max as get_features
 elif args.feature_extraction_type=='gram_mean':
     from lib_extraction import get_features_gram_mean as get_features
+elif args.feature_extraction_type=='no_pooling':
+    from lib_extraction import get_features_no_pooling as get_features
 
 def main():
     class SimCLR(nn.Module):

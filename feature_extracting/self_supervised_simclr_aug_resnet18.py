@@ -27,7 +27,7 @@ from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 #python ./feature_extracting/self_supervised_simclr_aug_resnet18.py --dataset cifar10 --backbone_name resnet18_simclr_permrot_cifar10 --gpu 6 --augmentation
 #python ./feature_extracting/self_supervised_simclr_aug_resnet18.py --dataset cifar100 --backbone_name resnet18_vanilla_simclr_cifar100 --gpu 6 --augmentation
-#python ./feature_extracting/self_supervised_simclr_aug_resnet18.py --dataset svhn --backbone_name resnet18_vanilla_simclr_svhn --out_dataset1 cifar10 --gpu 6 --augmentation
+#python ./feature_extracting/self_supervised_simclr_aug_resnet18.py --dataset svhn --backbone_name resnet18_simclr_permrot_svhn --out_dataset1 cifar10 --gpu 0 --augmentation
 parser = argparse.ArgumentParser(description='PyTorch code: Mahalanobis detector')
 parser.add_argument('--batch_size', type=int, default=200, metavar='N', help='batch size for data loader')
 parser.add_argument('--dataset', default='cifar10', help='cifar10 | cifar100 | svhn')
@@ -162,46 +162,48 @@ def main():
     # model.cuda()
     print('load model: ')
     
-    
-    if args.augmentation == 'cjitter':
+    if args.augmentation == '':
+        transform_train = trn.Compose([trn.ToTensor()])
+        transform_test = trn.Compose([trn.ToTensor()])
+    elif args.augmentation == '_cjitter':
         augment = trn.ColorJitter(0.8*0.5, 0.8*0.5, 0.8*0.5, 0.2*0.5)
         transform_train = trn.Compose([augment,
                                   trn.ToTensor()])
         transform_test = trn.Compose([augment,
                                       trn.ToTensor()])
-    elif args.augmentation == 'gray':
+    elif args.augmentation == '_gray':
         augment = trn.Grayscale(num_output_channels=3)
         transform_train = trn.Compose([augment,
                                   trn.ToTensor()])
         transform_test = trn.Compose([augment,
                                       trn.ToTensor()])
-    elif args.augmentation == 'hflip':
+    elif args.augmentation == '_hflip':
         augment = trn.functional.hflip
         transform_train = trn.Compose([augment,
                                   trn.ToTensor()])
         transform_test = trn.Compose([augment,
                                       trn.ToTensor()])
-    elif args.augmentation == 'vflip':
+    elif args.augmentation == '_vflip':
         augment = trn.functional.vflip
         transform_train = trn.Compose([augment,
                                   trn.ToTensor()])
         transform_test = trn.Compose([augment,
                                       trn.ToTensor()])
-    elif args.augmentation == 'gaussianblur':
+    elif args.augmentation == '_gaussianblur':
         augment = trn.GaussianBlur(3, sigma=(0.1, 2.0))
         transform_train = trn.Compose([augment,
                                   trn.ToTensor()])
         transform_test = trn.Compose([augment,
                                       trn.ToTensor()])
-    elif args.augmentation == 'rot90':
+    elif args.augmentation == '_rot90':
         augment = trn.Lambda(lambda img: torch.rot90(img, 1, [1,2]))
         transform_train = trn.Compose([trn.ToTensor(), augment])
         transform_test = trn.Compose([trn.ToTensor(), augment])
-    elif args.augmentation == 'rot180':
+    elif args.augmentation == '_rot180':
         augment = trn.Lambda(lambda img: torch.rot90(img, 2, [1,2]))
         transform_train = trn.Compose([trn.ToTensor(), augment])
         transform_test = trn.Compose([trn.ToTensor(), augment])
-    elif args.augmentation == 'rot270':
+    elif args.augmentation == '_rot270':
         augment = trn.Lambda(lambda img: torch.rot90(img, 3, [1,2]))
         transform_train = trn.Compose([trn.ToTensor(), augment])
         transform_test = trn.Compose([trn.ToTensor(), augment])
@@ -235,7 +237,7 @@ def main():
     for i in tqdm(range(num_output)):
         features = get_features(model, test_loader, i)
         
-        file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_%s_test_ind_%s.npy' % (str(i), args.dataset,args.feature_extraction_type, args.augmentation))
+        file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_%s_test_ind%s.npy' % (str(i), args.dataset,args.feature_extraction_type, args.augmentation))
         features = np.asarray(features, dtype=np.float32)
         print('layer= ',i)
         print(features.shape)
@@ -257,7 +259,7 @@ def main():
         for i in tqdm(range(num_output)):
             features = get_features(model, out_test_loader, i)
 
-            file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_%s_test_ood_%s.npy' % (str(i), out,args.feature_extraction_type, args.augmentation))
+            file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_%s_test_ood%s.npy' % (str(i), out,args.feature_extraction_type, args.augmentation))
             features = np.asarray(features, dtype=np.float32)
             np.save(file_name, features) 
 
@@ -265,7 +267,7 @@ def main():
     for i in tqdm(range(num_output)):
         features = get_features(model, train_loader, i)
 
-        file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_%s_train_ind_%s.npy' % (str(i), args.dataset,args.feature_extraction_type, args.augmentation))
+        file_name = os.path.join(args.outf, 'Features_from_layer_%s_%s_%s_train_ind%s.npy' % (str(i), args.dataset,args.feature_extraction_type, args.augmentation))
         features = np.asarray(features, dtype=np.float32)
         np.save(file_name, features) 
 

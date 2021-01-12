@@ -26,7 +26,7 @@ import shutil
 from plotly.offline import plot
 import plotly.graph_objs as go
 import matplotlib.pyplot as plt
-#python ./autoencoder_training/aug_vanillaAE_resnet18.py --backbone_name resnet18_vanilla_simclr_cifar10 --dataset cifar10 --gpu 6 --layer_num 9 --training_layer 0
+#python ./autoencoder_training/aug_vanillaAE_resnet18.py --backbone_name resnet18_simclr_permrot_cifar10 --dataset cifar10 --gpu 0 --layer_num 9 --training_layer 0
 #python ./autoencoder_training/aug_vanillaAE_resnet18.py --backbone_name resnet18_vanilla_simclr_svhn --dataset svhn --out_dataset cifar10 --gpu 6 --layer_num 9 --training_layer 0
 #python ./autoencoder_training/aug_vanillaAE_resnet18.py --backbone_name resnet18_vanilla_simclr_cifar100 --dataset cifar100 --gpu 6 --layer_num 9 --training_layer 0
 parser = argparse.ArgumentParser()
@@ -87,7 +87,7 @@ elif opt.moco_version==2:
 layer_num = opt.layer_num
 print('layer num', layer_num)
 
-augs = ['', '_cjitter', '_gray', '_hflip']#, '_vflip']
+augs = ['', '_cjitter', '_gray', '_hflip', '_rot90', '_rot180', '_rot270']#, '_vflip']
 print(augs)
 
 train_ind_feature=dict()
@@ -207,35 +207,35 @@ class Generator(nn.Module):
         return self.fc1(h)
 
 models=dict()
-models[0] = AE(64, 32, 16, 8,0,0,0)
-models[1] = AE(64, 32, 16, 8,0,0,0)
-models[2] = AE(64, 32, 16, 8,0,0,0)
-
-models[3] = AE(128, 64, 32, 16,16,0,0)
-models[4] = AE(128, 64, 32, 16,16,0,0)
-
-models[5] = AE(256, 128, 64, 32, 32, 0,0)
-models[6] = AE(256, 128, 64, 32, 32, 0,0)
-models[7] = AE(512,256,128,64,64,0,0)
-models[8] = AE(512,256,128,64,64,0,0)
-models[9] = AE(512,256,128,64,64,0,0)
-models[10] = AE(2048,512,128,64,64,0,0)
-models[11] = AE(128, 64, 32, 16,16,0,0)
-
 # models[0] = AE(64, 32, 16, 8,0,0,0)
 # models[1] = AE(64, 32, 16, 8,0,0,0)
 # models[2] = AE(64, 32, 16, 8,0,0,0)
 
-# models[3] = AE(128, 64, 32, 16,8,0,0)
-# models[4] = AE(128, 64, 32, 16,8,0,0)
+# models[3] = AE(128, 64, 32, 16,16,0,0)
+# models[4] = AE(128, 64, 32, 16,16,0,0)
 
-# models[5] = AE(256, 128, 64, 32, 16, 0,0)
-# models[6] = AE(256, 128, 64, 32, 16, 0,0)
-# models[7] = AE(512,256,128,64,32,0,0)
-# models[8] = AE(512,256,128,64,32,0,0)
-# models[9] = AE(512,256,128,64,32,0,0)
+# models[5] = AE(256, 128, 64, 32, 32, 0,0)
+# models[6] = AE(256, 128, 64, 32, 32, 0,0)
+# models[7] = AE(512,256,128,64,64,0,0)
+# models[8] = AE(512,256,128,64,64,0,0)
+# models[9] = AE(512,256,128,64,64,0,0)
 # models[10] = AE(2048,512,128,64,64,0,0)
 # models[11] = AE(128, 64, 32, 16,16,0,0)
+
+models[0] = AE(64, 32, 16, 8,0,0,0)
+models[1] = AE(64, 32, 16, 8,0,0,0)
+models[2] = AE(64, 32, 16, 8,0,0,0)
+
+models[3] = AE(128, 64, 32, 16,8,0,0)
+models[4] = AE(128, 64, 32, 16,8,0,0)
+
+models[5] = AE(256, 128, 64, 32, 16, 0,0)
+models[6] = AE(256, 128, 64, 32, 16, 0,0)
+models[7] = AE(512,256,128,64,32,0,0)
+models[8] = AE(512,256,128,64,32,0,0)
+models[9] = AE(512,256,128,64,32,0,0)
+models[10] = AE(2048,512,128,64,64,0,0)
+models[11] = AE(128, 64, 32, 16,16,0,0)
 
 
 if opt.moco_version==1:
